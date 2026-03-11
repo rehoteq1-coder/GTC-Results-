@@ -152,7 +152,7 @@ select option{background:var(--deep);}
         <select id="login-dept"></select>
       </div>
       <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:0.5rem;" onclick="doLogin()">Login →</button>
-      <p class="text-muted mt1" style="font-size:0.75rem;">Admin: admin/admin123 | HOD: hod/hod123 | Teacher: teacher/teacher123</p>
+      <p class="text-muted mt1" style="font-size:0.75rem;">Admin: any username / admin123 | HOD: use your last name as password | Teacher: any username / teacher123</p>
     </div>
   </div>
 </section>
@@ -356,16 +356,17 @@ const GED_SUBJECTS = [
 // DEPARTMENTS
 // ================================================================
 const DEPARTMENTS = [
-  {id:'ELE', name:'Electrical & Solar PV Installation', icon:'⚡'},
-  {id:'CHM', name:'Catering & Hotel Management (CHM)', icon:'🍽️'},
-  {id:'CGR', name:'Computer & GSM Repair', icon:'💻'},
-  {id:'PPF', name:'Plumbing & Pipe Fittings', icon:'🔧'},
-  {id:'BBC', name:'Building, Blocklaying & Concreting', icon:'🏗️'},
-  {id:'BTC', name:'Beauty Therapy & Cosmetology', icon:'💄'},
-  {id:'TLC', name:'Tiling & Cladding', icon:'🪟'},
-  {id:'SAI', name:'Smart Agriculture Implementation', icon:'🌾'},
-  {id:'FNC', name:'Furniture & Carpentry', icon:'🪑'},
-  {id:'GED', name:'General Education', icon:'📖'},
+  {id:'ELE', name:'Electrical & Solar PV Installation', icon:'⚡', hodPass:'oluwase'},
+  {id:'CHM', name:'Catering & Hotel Management (CHM)', icon:'🍽️', hodPass:'olorunyomi'},
+  {id:'CGR', name:'Computer & GSM Repair', icon:'💻', hodPass:'egbowon'},
+  {id:'PPF', name:'Plumbing & Pipe Fittings', icon:'🔧', hodPass:'ohunmule'},
+  {id:'BBC', name:'Building, Blocklaying & Concreting', icon:'🏗️', hodPass:'adesuyi'},
+  {id:'BTC', name:'Beauty Therapy & Cosmetology', icon:'💄', hodPass:'adeomo'},
+  {id:'TLC', name:'Tiling & Cladding', icon:'🪟', hodPass:'ajimosun'},
+  {id:'SAI', name:'Smart Agriculture Implementation', icon:'🌾', hodPass:'ajimosun'},
+  {id:'FNC', name:'Furniture & Carpentry', icon:'🪑', hodPass:'oguneso'},
+  {id:'WLD', name:'Welding & Fabrication', icon:'🔥', hodPass:'ajimosun'},
+  {id:'GED', name:'General Education', icon:'📖', hodPass:'general'},
 ];
 
 // ================================================================
@@ -386,7 +387,8 @@ load();
 // AUTH
 // ================================================================
 let CURRENT = { role:'', name:'', dept:'' };
-const CREDS = { admin:{pass:'admin123'}, hod:{pass:'hod123'}, teacher:{pass:'teacher123'} };
+function loadCreds(){ try{ const c=localStorage.getItem("gtc_creds"); if(c) return JSON.parse(c); }catch(e){} return {admin:{pass:"admin123"},hod:{pass:"hod123"},teacher:{pass:"teacher123"}}; }
+let CREDS = loadCreds();
 
 let loginRole = 'admin';
 function setRole(r, btn){
@@ -412,13 +414,22 @@ function doLogin(){
     afterLogin();
     return;
   }
+  if(loginRole === 'hod'){
+    const deptObj = DEPARTMENTS.find(d=>d.id===dept);
+    if(!deptObj){ toast('Select your department',false); return; }
+    // Check per-department HOD password (allow override from saved creds)
+    const savedPass = CREDS['hod_'+dept];
+    const expectedPass = savedPass || deptObj.hodPass;
+    if(pass !== expectedPass){ toast('Wrong password for this department',false); return; }
+    CURRENT = { role:'hod', name: user||'HOD', dept };
+    afterLogin(); return;
+  }
   if(!CREDS[loginRole]){ toast('Invalid role',false); return; }
   if(pass !== CREDS[loginRole].pass){ toast('Wrong password',false); return; }
-  const deptObj = DEPARTMENTS.find(d=>d.id===dept);
   CURRENT = {
     role: loginRole,
     name: user || loginRole.toUpperCase(),
-    dept: (loginRole==='hod'||loginRole==='teacher') ? dept : ''
+    dept: loginRole==='teacher' ? dept : ''
   };
   afterLogin();
 }
@@ -792,6 +803,39 @@ function printSheet(){
 // ================================================================
 // ADMIN
 // ================================================================
+function renderHodPwGrid(){
+  const grid=document.getElementById('hod-pw-grid');
+  if(!grid) return;
+  grid.innerHTML=DEPARTMENTS.filter(d=>d.id!=='GED').map(d=>`
+    <div class="form-group">
+      <label>${d.icon} ${d.name.split(' ').slice(0,2).join(' ')} HOD</label>
+      <input type="password" id="hod-pw-${d.id}" placeholder="Default: ${d.hodPass}"/>
+    </div>`).join('');
+}
+
+function changePasswords(){
+  const a=document.getElementById("pw-admin").value.trim();
+  const a2=document.getElementById("pw-admin2").value.trim();
+  const t=document.getElementById("pw-teacher").value.trim();
+  if(a && a!==a2){ toast("Admin passwords do not match",false); return; }
+  if(a) CREDS.admin.pass=a;
+  if(t) CREDS.teacher.pass=t;
+  // Save per-dept HOD passwords
+  DEPARTMENTS.filter(d=>d.id!=='GED').forEach(d=>{
+    const el=document.getElementById('hod-pw-'+d.id);
+    if(el && el.value.trim()) CREDS['hod_'+d.id]=el.value.trim();
+  });
+  localStorage.setItem("gtc_creds", JSON.stringify(CREDS));
+  toast("Passwords updated successfully!");
+  document.getElementById("pw-admin").value="";
+  document.getElementById("pw-admin2").value="";
+  document.getElementById("pw-teacher").value="";
+  DEPARTMENTS.filter(d=>d.id!=='GED').forEach(d=>{
+    const el=document.getElementById('hod-pw-'+d.id);
+    if(el) el.value="";
+  });
+}
+
 function saveAdminSettings(){
   DB.settings.name=document.getElementById('a-name').value;
   DB.settings.session=document.getElementById('a-session').value;
@@ -800,7 +844,7 @@ function saveAdminSettings(){
   save(); toast('Settings saved!');
 }
 
-function renderAdminStats(){
+function renderAdminStats(){ renderHodPwGrid();
   document.getElementById('a-stat-s').textContent=DB.students.length;
   document.getElementById('a-stat-r').textContent=DB.results.length;
   document.getElementById('a-stat-sub').textContent=DB.subjects.length;
@@ -839,4 +883,4 @@ function populateAdminFilters(){
 populateResultFilters();
 </script>
 </body>
-  </html>
+</html>
