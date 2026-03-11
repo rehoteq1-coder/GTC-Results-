@@ -1,0 +1,842 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>GTC Okitipupa — Result Management System</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+:root{--navy:#0a0f2c;--deep:#111827;--gold:#c9a84c;--gold-light:#e8c97a;--white:#ffffff;--muted:#6b7280;--success:#16a34a;--danger:#dc2626;--border:rgba(201,168,76,0.2);}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'DM Sans',sans-serif;background:var(--navy);color:var(--white);min-height:100vh;}
+body::before{content:'';position:fixed;inset:0;z-index:0;background:radial-gradient(ellipse 80% 60% at 20% 10%,rgba(30,58,95,0.6) 0%,transparent 60%),radial-gradient(ellipse 60% 40% at 80% 80%,rgba(201,168,76,0.08) 0%,transparent 50%);pointer-events:none;}
+.app{position:relative;z-index:1;}
+header{display:flex;align-items:center;justify-content:space-between;padding:1rem 2rem;border-bottom:1px solid var(--border);backdrop-filter:blur(10px);background:rgba(10,15,44,0.9);position:sticky;top:0;z-index:100;flex-wrap:wrap;gap:0.5rem;}
+.logo{display:flex;align-items:center;gap:0.75rem;}
+.logo-icon{width:38px;height:38px;background:linear-gradient(135deg,var(--gold),var(--gold-light));border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:1.1rem;}
+.logo-text{font-family:'Playfair Display',serif;font-size:1.1rem;font-weight:700;}
+.logo-text span{color:var(--gold);}
+nav{display:flex;gap:0.4rem;flex-wrap:wrap;}
+.nav-btn{padding:0.45rem 0.9rem;border-radius:7px;border:1px solid transparent;background:transparent;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:0.82rem;cursor:pointer;transition:all 0.2s;}
+.nav-btn:hover{color:var(--white);border-color:var(--border);}
+.nav-btn.active{background:linear-gradient(135deg,var(--gold),var(--gold-light));color:var(--navy);font-weight:600;}
+.user-badge{background:rgba(201,168,76,0.15);border:1px solid var(--border);border-radius:20px;padding:0.3rem 0.9rem;font-size:0.8rem;color:var(--gold-light);display:flex;align-items:center;gap:0.4rem;}
+section{display:none;padding:2rem;max-width:1100px;margin:0 auto;}
+section.active{display:block;animation:fadeUp 0.35s ease;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+.panel{background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:14px;padding:1.8rem;margin-bottom:1.4rem;}
+.panel-title{font-family:'Playfair Display',serif;font-size:1.2rem;margin-bottom:1.3rem;display:flex;align-items:center;gap:0.5rem;}
+.panel-title span{color:var(--gold);}
+.form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:0.9rem;}
+.form-group{display:flex;flex-direction:column;gap:0.35rem;}
+label{font-size:0.76rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;font-weight:500;}
+input,select{background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:7px;padding:0.6rem 0.85rem;color:var(--white);font-family:'DM Sans',sans-serif;font-size:0.92rem;transition:border 0.2s;width:100%;}
+input:focus,select:focus{outline:none;border-color:var(--gold);background:rgba(201,168,76,0.06);}
+select option{background:var(--deep);}
+.btn{padding:0.6rem 1.3rem;border-radius:7px;border:none;font-family:'DM Sans',sans-serif;font-size:0.88rem;font-weight:600;cursor:pointer;transition:all 0.2s;display:inline-flex;align-items:center;gap:0.4rem;}
+.btn-primary{background:linear-gradient(135deg,var(--gold),var(--gold-light));color:var(--navy);}
+.btn-primary:hover{transform:translateY(-1px);box-shadow:0 4px 18px rgba(201,168,76,0.3);}
+.btn-ghost{background:transparent;color:var(--gold);border:1px solid var(--gold);}
+.btn-ghost:hover{background:rgba(201,168,76,0.1);}
+.btn-danger{background:rgba(220,38,38,0.15);color:#f87171;border:1px solid rgba(220,38,38,0.3);}
+.btn-danger:hover{background:rgba(220,38,38,0.25);}
+.btn-sm{padding:0.32rem 0.75rem;font-size:0.76rem;}
+.stats-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:1rem;margin-bottom:1.4rem;}
+.stat-card{background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:11px;padding:1.1rem;text-align:center;}
+.stat-card .val{font-family:'Playfair Display',serif;font-size:1.8rem;color:var(--gold);}
+.stat-card .lbl{color:var(--muted);font-size:0.76rem;margin-top:0.2rem;}
+.tbl{width:100%;border-collapse:collapse;font-size:0.86rem;}
+.tbl th{text-align:left;padding:0.6rem 0.9rem;background:rgba(201,168,76,0.07);color:var(--gold);font-size:0.72rem;text-transform:uppercase;letter-spacing:0.06em;border-bottom:1px solid var(--border);}
+.tbl td{padding:0.6rem 0.9rem;border-bottom:1px solid rgba(255,255,255,0.04);vertical-align:middle;}
+.tbl tr:hover td{background:rgba(255,255,255,0.02);}
+.tbl td input{padding:0.35rem 0.55rem;font-size:0.83rem;min-width:70px;}
+.badge{display:inline-block;padding:0.18rem 0.55rem;border-radius:18px;font-size:0.72rem;font-weight:600;}
+.badge-A{background:rgba(22,163,74,0.2);color:#4ade80;}
+.badge-B{background:rgba(37,99,235,0.2);color:#60a5fa;}
+.badge-C{background:rgba(234,179,8,0.2);color:#facc15;}
+.badge-D{background:rgba(217,119,6,0.2);color:#fb923c;}
+.badge-F{background:rgba(220,38,38,0.2);color:#f87171;}
+.dept-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1rem;margin-top:1rem;}
+.dept-card{background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:12px;padding:1.3rem;cursor:pointer;transition:all 0.25s;}
+.dept-card:hover{background:rgba(201,168,76,0.08);border-color:var(--gold);transform:translateY(-3px);}
+.dept-card .di{font-size:1.6rem;margin-bottom:0.6rem;}
+.dept-card h3{font-size:0.92rem;margin-bottom:0.25rem;}
+.dept-card p{color:var(--muted);font-size:0.78rem;}
+.search-bar{display:flex;gap:0.8rem;align-items:center;margin-bottom:1.3rem;flex-wrap:wrap;}
+.search-bar input{flex:1;min-width:180px;}
+.flex-end{display:flex;justify-content:flex-end;gap:0.65rem;flex-wrap:wrap;margin-top:0.9rem;}
+.flex-between{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.9rem;margin-bottom:1.3rem;}
+.divider{height:1px;background:var(--border);margin:1.3rem 0;}
+.empty{text-align:center;padding:2.5rem 1rem;color:var(--muted);}
+.empty .ei{font-size:2.2rem;margin-bottom:0.5rem;}
+.text-gold{color:var(--gold);}
+.text-muted{color:var(--muted);font-size:0.83rem;}
+.mt1{margin-top:0.9rem;}.mb1{margin-bottom:0.9rem;}
+.wrap{overflow-x:auto;}
+#toast{position:fixed;bottom:1.8rem;right:1.8rem;z-index:999;background:var(--success);color:#fff;padding:0.75rem 1.3rem;border-radius:9px;font-size:0.88rem;font-weight:500;transform:translateY(70px);opacity:0;transition:all 0.3s;pointer-events:none;}
+#toast.show{transform:translateY(0);opacity:1;}
+/* LOGIN */
+.login-wrap{min-height:80vh;display:flex;align-items:center;justify-content:center;}
+.login-box{background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:18px;padding:2.5rem;width:100%;max-width:420px;text-align:center;}
+.login-box h2{font-family:'Playfair Display',serif;font-size:1.6rem;margin-bottom:0.5rem;}
+.login-box p{color:var(--muted);font-size:0.88rem;margin-bottom:1.8rem;}
+.login-box .form-group{text-align:left;margin-bottom:1rem;}
+.role-tabs{display:flex;gap:0.5rem;margin-bottom:1.5rem;justify-content:center;}
+.role-tab{padding:0.4rem 1.1rem;border-radius:20px;border:1px solid var(--border);background:transparent;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:0.82rem;cursor:pointer;transition:all 0.2s;}
+.role-tab.active{background:var(--gold);color:var(--navy);font-weight:600;border-color:transparent;}
+/* RESULT SHEET */
+.result-sheet{background:#fff;color:#111;border-radius:12px;padding:2.2rem;max-width:700px;margin:0 auto;}
+.rs-header{text-align:center;border-bottom:3px double #0a0f2c;padding-bottom:1rem;margin-bottom:1.3rem;}
+.rs-header h2{font-family:'Playfair Display',serif;font-size:1.4rem;color:#0a0f2c;}
+.rs-header p{font-size:0.82rem;color:#555;margin-top:0.25rem;}
+.rs-meta{display:grid;grid-template-columns:1fr 1fr;gap:0.4rem 1.8rem;margin-bottom:1.3rem;font-size:0.86rem;}
+.rs-meta dt{color:#555;font-size:0.76rem;}
+.rs-meta dd{font-weight:600;color:#111;}
+.rs-tbl{width:100%;border-collapse:collapse;margin-bottom:1.3rem;font-size:0.84rem;}
+.rs-tbl th{background:#0a0f2c;color:#fff;padding:0.45rem 0.75rem;text-align:left;font-size:0.74rem;}
+.rs-tbl td{padding:0.45rem 0.75rem;border-bottom:1px solid #e5e7eb;}
+.rs-tbl tr:nth-child(even) td{background:#f9fafb;}
+.rs-summary{display:flex;gap:1.8rem;justify-content:flex-end;flex-wrap:wrap;margin-top:0.8rem;}
+.rs-summary-item{text-align:center;}
+.rs-summary-item .sv{font-family:'Playfair Display',serif;font-size:1.7rem;color:#0a0f2c;}
+.rs-summary-item .sl{font-size:0.72rem;color:#555;}
+.rs-footer{margin-top:1.3rem;border-top:1px solid #e5e7eb;padding-top:0.9rem;display:flex;justify-content:space-between;font-size:0.76rem;color:#888;}
+#print-area{display:none;}
+@media print{body>*:not(#print-area){display:none!important;}#print-area{display:block!important;}.no-print{display:none!important;}}
+@media(max-width:600px){header{padding:0.8rem 1rem;}section{padding:1rem;}.panel{padding:1.1rem;}}
+</style>
+</head>
+<body>
+<div class="app">
+<header>
+  <div class="logo">
+    <div class="logo-icon">🎓</div>
+    <div class="logo-text">GTC <span>Okitipupa</span></div>
+  </div>
+  <nav id="main-nav" style="display:none;">
+    <button class="nav-btn active" onclick="showSection('dashboard',this)">🏠 Home</button>
+    <button class="nav-btn" onclick="showSection('hod',this)" id="nav-hod" style="display:none">👩‍💼 HOD Panel</button>
+    <button class="nav-btn" onclick="showSection('teacher',this)" id="nav-teacher" style="display:none">✍️ Score Entry</button>
+    <button class="nav-btn" onclick="showSection('results',this)">📊 Results</button>
+    <button class="nav-btn" onclick="showSection('admin',this)" id="nav-admin" style="display:none">⚙️ Admin</button>
+  </nav>
+  <div style="display:flex;align-items:center;gap:0.8rem;">
+    <div class="user-badge" id="user-badge" style="display:none">👤 <span id="user-label">Guest</span></div>
+    <button class="btn btn-ghost btn-sm" id="logout-btn" style="display:none" onclick="logout()">Logout</button>
+  </div>
+</header>
+
+<!-- LOGIN -->
+<section id="login" class="active">
+  <div class="login-wrap">
+    <div class="login-box">
+      <div style="font-size:2.5rem;margin-bottom:0.8rem;">🎓</div>
+      <h2>GTC Okitipupa</h2>
+      <p>Government Technical College, Okitipupa<br/>Result Management System</p>
+      <div class="role-tabs">
+        <button class="role-tab active" onclick="setRole('admin',this)">Admin</button>
+        <button class="role-tab" onclick="setRole('hod',this)">HOD</button>
+        <button class="role-tab" onclick="setRole('teacher',this)">Teacher</button>
+        <button class="role-tab" onclick="setRole('viewer',this)">View Results</button>
+      </div>
+      <div class="form-group">
+        <label>Username</label>
+        <input type="text" id="login-user" placeholder="Enter username"/>
+      </div>
+      <div class="form-group" id="pass-group">
+        <label>Password</label>
+        <input type="password" id="login-pass" placeholder="Enter password"/>
+      </div>
+      <div class="form-group" id="dept-group" style="display:none;">
+        <label>Your Department</label>
+        <select id="login-dept"></select>
+      </div>
+      <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:0.5rem;" onclick="doLogin()">Login →</button>
+      <p class="text-muted mt1" style="font-size:0.75rem;">Admin: admin/admin123 | HOD: hod/hod123 | Teacher: teacher/teacher123</p>
+    </div>
+  </div>
+</section>
+
+<!-- DASHBOARD -->
+<section id="dashboard">
+  <div class="flex-between">
+    <div>
+      <h2 class="panel-title">🏠 <span>Dashboard</span></h2>
+      <p class="text-muted" id="dash-welcome">Welcome to GTC Okitipupa Result Management System</p>
+    </div>
+  </div>
+  <div class="stats-row">
+    <div class="stat-card"><div class="val" id="ds-students">0</div><div class="lbl">Total Students</div></div>
+    <div class="stat-card"><div class="val" id="ds-depts">10</div><div class="lbl">Departments</div></div>
+    <div class="stat-card"><div class="val" id="ds-results">0</div><div class="lbl">Results Entered</div></div>
+    <div class="stat-card"><div class="val" id="ds-subjects">0</div><div class="lbl">Subjects</div></div>
+  </div>
+  <div class="panel">
+    <div class="panel-title">🏛️ <span>Departments</span></div>
+    <div class="dept-grid" id="dept-grid"></div>
+  </div>
+</section>
+
+<!-- HOD PANEL -->
+<section id="hod">
+  <div class="flex-between">
+    <div><h2 class="panel-title">👩‍💼 HOD <span>Panel</span></h2>
+    <p class="text-muted" id="hod-dept-label">Manage your department students and subjects</p></div>
+  </div>
+  <!-- Add Student -->
+  <div class="panel">
+    <div class="panel-title">➕ Add <span>Student</span></div>
+    <div class="form-grid">
+      <div class="form-group"><label>Reg. Number</label><input type="text" id="h-reg" placeholder="e.g. GTC/24/001"/></div>
+      <div class="form-group"><label>Full Name</label><input type="text" id="h-name" placeholder="Student full name"/></div>
+      <div class="form-group"><label>Level</label>
+        <select id="h-level"><option>NTC 1</option><option>NTC 2</option><option>NTC 3</option></select></div>
+      <div class="form-group"><label>Gender</label>
+        <select id="h-gender"><option>Male</option><option>Female</option></select></div>
+    </div>
+    <div class="flex-end"><button class="btn btn-primary" onclick="addStudent()">➕ Add Student</button></div>
+  </div>
+  <!-- Add Subject -->
+  <div class="panel">
+    <div class="panel-title">📚 Add <span>Subject</span></div>
+    <div class="form-grid">
+      <div class="form-group"><label>Subject Code</label><input type="text" id="h-scode" placeholder="e.g. ELE 101"/></div>
+      <div class="form-group"><label>Subject Title</label><input type="text" id="h-stitle" placeholder="e.g. Basic Electricity"/></div>
+      <div class="form-group"><label>Level</label>
+        <select id="h-slevel"><option>NTC 1</option><option>NTC 2</option><option>NTC 3</option></select></div>
+      <div class="form-group"><label>Units</label><input type="number" id="h-sunits" placeholder="3" min="1" max="6"/></div>
+    </div>
+    <div class="flex-end"><button class="btn btn-primary" onclick="addSubject()">➕ Add Subject</button></div>
+  </div>
+  <!-- Students List -->
+  <div class="panel">
+    <div class="panel-title">👥 <span>Students</span> in Department</div>
+    <div class="search-bar">
+      <input type="text" id="hod-search" placeholder="Search student…" oninput="renderHodStudents()"/>
+      <select id="hod-level-filter" onchange="renderHodStudents()">
+        <option value="">All Levels</option>
+        <option>NTC 1</option><option>NTC 2</option><option>NTC 3</option>
+      </select>
+    </div>
+    <div class="wrap"><table class="tbl"><thead><tr><th>Reg. No.</th><th>Name</th><th>Level</th><th>Gender</th><th>Results</th><th></th></tr></thead>
+    <tbody id="hod-students-body"></tbody></table></div>
+  </div>
+  <!-- Subjects List -->
+  <div class="panel">
+    <div class="panel-title">📚 <span>Subjects</span> in Department</div>
+    <div class="wrap"><table class="tbl"><thead><tr><th>Code</th><th>Title</th><th>Level</th><th>Units</th><th></th></tr></thead>
+    <tbody id="hod-subjects-body"></tbody></table></div>
+  </div>
+</section>
+
+<!-- TEACHER SCORE ENTRY -->
+<section id="teacher">
+  <div class="flex-between">
+    <div><h2 class="panel-title">✍️ Score <span>Entry</span></h2>
+    <p class="text-muted">Select your department and subject to enter scores</p></div>
+  </div>
+  <div class="panel">
+    <div class="panel-title">📌 <span>Select</span> Class</div>
+    <div class="form-grid">
+      <div class="form-group"><label>Department</label>
+        <select id="t-dept" onchange="loadTeacherSubjects()"><option value="">-- Select Department --</option></select></div>
+      <div class="form-group"><label>Subject</label>
+        <select id="t-subject" onchange="loadStudentsForScoring()"><option value="">-- Select Subject --</option></select></div>
+      <div class="form-group"><label>Level</label>
+        <select id="t-level" onchange="loadStudentsForScoring()">
+          <option value="">All</option><option>NTC 1</option><option>NTC 2</option><option>NTC 3</option>
+        </select></div>
+      <div class="form-group"><label>Session</label>
+        <input type="text" id="t-session" value="2024/2025"/></div>
+    </div>
+  </div>
+  <div class="panel" id="t-score-panel" style="display:none;">
+    <div class="flex-between">
+      <div class="panel-title">📝 Enter <span>Scores</span></div>
+      <span class="text-muted" id="t-subject-label"></span>
+    </div>
+    <div class="wrap">
+      <table class="tbl" id="t-score-table">
+        <thead><tr><th>Reg. No.</th><th>Student Name</th><th>Level</th><th>CA Score (40)</th><th>Exam Score (60)</th><th>Total</th><th>Grade</th></tr></thead>
+        <tbody id="t-score-body"></tbody>
+      </table>
+    </div>
+    <div class="flex-end"><button class="btn btn-primary" onclick="submitTeacherScores()">✅ Submit All Scores</button></div>
+  </div>
+</section>
+
+<!-- RESULTS VIEW -->
+<section id="results">
+  <div class="flex-between">
+    <div><h2 class="panel-title">📊 View <span>Results</span></h2>
+    <p class="text-muted">Search and print student result sheets</p></div>
+  </div>
+  <div class="panel">
+    <div class="form-grid mb1">
+      <div class="form-group"><label>Department</label>
+        <select id="r-dept" onchange="searchResults()"><option value="">All Departments</option></select></div>
+      <div class="form-group"><label>Level</label>
+        <select id="r-level" onchange="searchResults()"><option value="">All Levels</option><option>NTC 1</option><option>NTC 2</option><option>NTC 3</option></select></div>
+      <div class="form-group"><label>Search Student</label>
+        <input type="text" id="r-search" placeholder="Name or Reg. No." oninput="searchResults()"/></div>
+    </div>
+    <div id="r-list"></div>
+  </div>
+  <div id="r-sheet-wrap" style="display:none;">
+    <div class="flex-end no-print mb1">
+      <button class="btn btn-ghost" onclick="document.getElementById('r-sheet-wrap').style.display='none'">✖ Close</button>
+      <button class="btn btn-primary" onclick="printSheet()">🖨️ Print Result</button>
+    </div>
+    <div class="result-sheet" id="r-sheet-content"></div>
+  </div>
+</section>
+
+<!-- ADMIN -->
+<section id="admin">
+  <div class="flex-between">
+    <div><h2 class="panel-title">⚙️ <span>Admin</span> Panel</h2>
+    <p class="text-muted">School-wide settings and full data overview</p></div>
+  </div>
+  <div class="panel">
+    <div class="panel-title">🏫 School <span>Settings</span></div>
+    <div class="form-grid">
+      <div class="form-group"><label>School Name</label><input type="text" id="a-name" value="Government Technical College, Okitipupa"/></div>
+      <div class="form-group"><label>Session</label><input type="text" id="a-session" value="2024/2025"/></div>
+      <div class="form-group"><label>Term</label>
+        <select id="a-term"><option>First Term</option><option>Second Term</option><option>Third Term</option></select></div>
+      <div class="form-group"><label>Principal Name</label><input type="text" id="a-principal" placeholder="e.g. Mr. Adeyemi"/></div>
+    </div>
+    <div class="flex-end"><button class="btn btn-primary" onclick="saveAdminSettings()">💾 Save Settings</button></div>
+  </div>
+  <div class="stats-row">
+    <div class="stat-card"><div class="val" id="a-stat-s">0</div><div class="lbl">Total Students</div></div>
+    <div class="stat-card"><div class="val" id="a-stat-r">0</div><div class="lbl">Total Results</div></div>
+    <div class="stat-card"><div class="val" id="a-stat-sub">0</div><div class="lbl">Total Subjects</div></div>
+    <div class="stat-card"><div class="val" id="a-stat-avg">—</div><div class="lbl">Overall Average</div></div>
+  </div>
+  <div class="panel">
+    <div class="panel-title">📋 All <span>Results</span></div>
+    <div class="search-bar">
+      <input type="text" id="a-search" placeholder="Search…" oninput="renderAdminResults()"/>
+      <select id="a-dept-filter" onchange="renderAdminResults()"><option value="">All Departments</option></select>
+    </div>
+    <div class="wrap"><table class="tbl"><thead><tr><th>Reg.No.</th><th>Name</th><th>Dept</th><th>Subject</th><th>Level</th><th>CA</th><th>Exam</th><th>Total</th><th>Grade</th><th></th></tr></thead>
+    <tbody id="a-results-body"></tbody></table></div>
+  </div>
+  <div class="panel">
+    <div class="panel-title">🗑️ <span>Data</span> Management</div>
+    <p class="text-muted mb1">Danger zone — use with caution.</p>
+    <div style="display:flex;gap:0.8rem;flex-wrap:wrap;">
+      <button class="btn btn-danger" onclick="if(confirm('Clear ALL results?')){DB.results=[];save();toast('Results cleared');renderAdminResults();renderAdminStats();}">🗑️ Clear All Results</button>
+      <button class="btn btn-danger" onclick="if(confirm('Reset everything?')){localStorage.removeItem('gtc_v2');location.reload();}">⚠️ Full Reset</button>
+    </div>
+  </div>
+</section>
+</div>
+
+<div id="print-area"></div>
+<div id="toast">✓ Done!</div>
+
+<script>
+// ================================================================
+// GENERAL EDUCATION SUBJECTS (taken by ALL students in ALL departments)
+// ================================================================
+const GED_SUBJECTS = [
+  {code:'GED-MTH', title:'Mathematics',              units:3},
+  {code:'GED-ENG', title:'English Language',          units:3},
+  {code:'GED-CHM', title:'Chemistry',                 units:2},
+  {code:'GED-PHY', title:'Physics',                   units:2},
+  {code:'GED-TDR', title:'Technical Drawing',         units:2},
+  {code:'GED-BEL', title:'Basic Electricity',         units:2},
+  {code:'GED-CCH', title:'Civic & Cultural Heritage', units:1},
+  {code:'GED-DGT', title:'Digital Technology',        units:2},
+];
+
+// ================================================================
+// DEPARTMENTS
+// ================================================================
+const DEPARTMENTS = [
+  {id:'ELE', name:'Electrical & Solar PV Installation', icon:'⚡'},
+  {id:'CHM', name:'Catering & Hotel Management (CHM)', icon:'🍽️'},
+  {id:'CGR', name:'Computer & GSM Repair', icon:'💻'},
+  {id:'PPF', name:'Plumbing & Pipe Fittings', icon:'🔧'},
+  {id:'BBC', name:'Building, Blocklaying & Concreting', icon:'🏗️'},
+  {id:'BTC', name:'Beauty Therapy & Cosmetology', icon:'💄'},
+  {id:'TLC', name:'Tiling & Cladding', icon:'🪟'},
+  {id:'SAI', name:'Smart Agriculture Implementation', icon:'🌾'},
+  {id:'FNC', name:'Furniture & Carpentry', icon:'🪑'},
+  {id:'GED', name:'General Education', icon:'📖'},
+];
+
+// ================================================================
+// DATA STORE
+// ================================================================
+let DB = {
+  settings: {name:'Government Technical College, Okitipupa', session:'2024/2025', term:'First Term', principal:''},
+  students: [],   // {id, reg, name, dept, level, gender}
+  subjects: [],   // {id, code, title, dept, level, units}
+  results: []     // {studentReg, studentName, dept, subjectCode, subjectTitle, level, units, ca, exam, total, grade, teacher, session}
+};
+
+function save(){ try{ localStorage.setItem('gtc_v2', JSON.stringify(DB)); }catch(e){} }
+function load(){ try{ const d=localStorage.getItem('gtc_v2'); if(d) DB=JSON.parse(d); }catch(e){} }
+load();
+
+// ================================================================
+// AUTH
+// ================================================================
+let CURRENT = { role:'', name:'', dept:'' };
+const CREDS = { admin:{pass:'admin123'}, hod:{pass:'hod123'}, teacher:{pass:'teacher123'} };
+
+let loginRole = 'admin';
+function setRole(r, btn){
+  loginRole = r;
+  document.querySelectorAll('.role-tab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('dept-group').style.display = (r==='hod'||r==='teacher') ? 'block' : 'none';
+  document.getElementById('pass-group').style.display = r==='viewer' ? 'none' : 'block';
+}
+
+function populateLoginDept(){
+  const sel = document.getElementById('login-dept');
+  sel.innerHTML = DEPARTMENTS.map(d=>`<option value="${d.id}">${d.name}</option>`).join('');
+}
+populateLoginDept();
+
+function doLogin(){
+  const user = document.getElementById('login-user').value.trim();
+  const pass = document.getElementById('login-pass').value;
+  const dept = document.getElementById('login-dept').value;
+  if(loginRole === 'viewer'){
+    CURRENT = {role:'viewer', name:'Guest', dept:''};
+    afterLogin();
+    return;
+  }
+  if(!CREDS[loginRole]){ toast('Invalid role',false); return; }
+  if(pass !== CREDS[loginRole].pass){ toast('Wrong password',false); return; }
+  const deptObj = DEPARTMENTS.find(d=>d.id===dept);
+  CURRENT = {
+    role: loginRole,
+    name: user || loginRole.toUpperCase(),
+    dept: (loginRole==='hod'||loginRole==='teacher') ? dept : ''
+  };
+  afterLogin();
+}
+
+function afterLogin(){
+  document.getElementById('main-nav').style.display='flex';
+  document.getElementById('user-badge').style.display='flex';
+  document.getElementById('logout-btn').style.display='inline-flex';
+  document.getElementById('user-label').textContent = CURRENT.name + (CURRENT.dept ? ' — '+getDeptName(CURRENT.dept) : '');
+  document.getElementById('nav-hod').style.display = CURRENT.role==='hod' ? 'inline-flex' : 'none';
+  document.getElementById('nav-teacher').style.display = (CURRENT.role==='teacher'||CURRENT.role==='admin') ? 'inline-flex' : 'none';
+  document.getElementById('nav-admin').style.display = CURRENT.role==='admin' ? 'inline-flex' : 'none';
+  showSection('dashboard', document.querySelector('.nav-btn'));
+}
+
+function logout(){
+  CURRENT = {role:'',name:'',dept:''};
+  document.getElementById('main-nav').style.display='none';
+  document.getElementById('user-badge').style.display='none';
+  document.getElementById('logout-btn').style.display='none';
+  document.querySelectorAll('section').forEach(s=>s.classList.remove('active'));
+  document.getElementById('login').classList.add('active');
+}
+
+// ================================================================
+// NAVIGATION
+// ================================================================
+function showSection(id, btn){
+  document.querySelectorAll('section').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  if(id==='dashboard') renderDashboard();
+  if(id==='hod') renderHOD();
+  if(id==='teacher') renderTeacherDepts();
+  if(id==='results') { populateResultFilters(); searchResults(); }
+  if(id==='admin') { renderAdminStats(); renderAdminResults(); populateAdminFilters(); }
+}
+
+// ================================================================
+// UTILITIES
+// ================================================================
+function toast(msg, ok=true){
+  const t=document.getElementById('toast');
+  t.textContent=(ok?'✓ ':'⚠ ')+msg;
+  t.style.background=ok?'#16a34a':'#dc2626';
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),3000);
+}
+function calcGrade(t){ if(t>=70)return'A'; if(t>=60)return'B'; if(t>=50)return'C'; if(t>=45)return'D'; return'F'; }
+function calcGP(g){ return{A:5,B:4,C:3,D:2,F:0}[g]||0; }
+function getDeptName(id){ return DEPARTMENTS.find(d=>d.id===id)?.name||id; }
+function getDeptIcon(id){ return DEPARTMENTS.find(d=>d.id===id)?.icon||'📁'; }
+function uid(){ return Math.random().toString(36).substr(2,9); }
+
+// ================================================================
+// DASHBOARD
+// ================================================================
+function renderDashboard(){
+  document.getElementById('ds-students').textContent = DB.students.length;
+  document.getElementById('ds-results').textContent = DB.results.length;
+  document.getElementById('ds-subjects').textContent = DB.subjects.length;
+  const grid = document.getElementById('dept-grid');
+  grid.innerHTML = DEPARTMENTS.map(d=>{
+    const count = DB.students.filter(s=>s.dept===d.id).length;
+    const rcount = DB.results.filter(r=>r.dept===d.id).length;
+    return `<div class="dept-card" onclick="openDept('${d.id}')">
+      <div class="di">${d.icon}</div>
+      <h3>${d.name}</h3>
+      <p>${count} student(s) · ${rcount} result(s)</p>
+    </div>`;
+  }).join('');
+  if(CURRENT.role==='hod'){
+    document.getElementById('dash-welcome').textContent = `Welcome, HOD of ${getDeptName(CURRENT.dept)}`;
+  } else if(CURRENT.role==='teacher'){
+    document.getElementById('dash-welcome').textContent = `Welcome, ${CURRENT.name}. Use Score Entry to enter results.`;
+  }
+}
+
+function openDept(deptId){
+  if(CURRENT.role==='hod' && CURRENT.dept !== deptId){ toast('You can only manage your own department',false); return; }
+  CURRENT.dept = CURRENT.role==='admin' ? deptId : CURRENT.dept;
+  const btn = document.getElementById('nav-hod');
+  if(CURRENT.role==='admin'){ btn.style.display='inline-flex'; }
+  showSection('hod', btn);
+}
+
+// ================================================================
+// HOD PANEL
+// ================================================================
+function renderHOD(){
+  const deptName = getDeptName(CURRENT.dept);
+  document.getElementById('hod-dept-label').textContent = `Department: ${deptName}`;
+  renderHodStudents();
+  renderHodSubjects();
+}
+
+function addStudent(){
+  const reg = document.getElementById('h-reg').value.trim();
+  const name = document.getElementById('h-name').value.trim();
+  const level = document.getElementById('h-level').value;
+  const gender = document.getElementById('h-gender').value;
+  if(!reg||!name){ toast('Fill all fields',false); return; }
+  if(DB.students.find(s=>s.reg===reg)){ toast('Reg. number already exists',false); return; }
+  DB.students.push({id:uid(), reg, name, dept:CURRENT.dept, level, gender});
+  save(); toast('Student added!');
+  document.getElementById('h-reg').value='';
+  document.getElementById('h-name').value='';
+  renderHodStudents(); renderDashboard();
+}
+
+function addSubject(){
+  const code = document.getElementById('h-scode').value.trim();
+  const title = document.getElementById('h-stitle').value.trim();
+  const level = document.getElementById('h-slevel').value;
+  const units = parseInt(document.getElementById('h-sunits').value)||3;
+  if(!code||!title){ toast('Fill all fields',false); return; }
+  if(DB.subjects.find(s=>s.code===code&&s.dept===CURRENT.dept)){ toast('Subject already exists',false); return; }
+  DB.subjects.push({id:uid(), code, title, dept:CURRENT.dept, level, units});
+  save(); toast('Subject added!');
+  document.getElementById('h-scode').value='';
+  document.getElementById('h-stitle').value='';
+  renderHodSubjects();
+}
+
+function removeStudent(id){
+  if(!confirm('Remove student?'))return;
+  DB.students = DB.students.filter(s=>s.id!==id);
+  save(); toast('Removed'); renderHodStudents();
+}
+
+function removeSubject(id){
+  if(!confirm('Remove subject?'))return;
+  DB.subjects = DB.subjects.filter(s=>s.id!==id);
+  save(); toast('Removed'); renderHodSubjects();
+}
+
+function renderHodStudents(){
+  const q=(document.getElementById('hod-search')?.value||'').toLowerCase();
+  const lf=document.getElementById('hod-level-filter')?.value||'';
+  let list = DB.students.filter(s=>s.dept===CURRENT.dept);
+  if(q) list=list.filter(s=>s.name.toLowerCase().includes(q)||s.reg.toLowerCase().includes(q));
+  if(lf) list=list.filter(s=>s.level===lf);
+  const tbody=document.getElementById('hod-students-body');
+  if(!list.length){ tbody.innerHTML=`<tr><td colspan="6"><div class="empty"><div class="ei">👥</div><p>No students yet. Add students above.</p></div></td></tr>`; return; }
+  tbody.innerHTML=list.map(s=>{
+    const rc=DB.results.filter(r=>r.studentReg===s.reg).length;
+    return `<tr>
+      <td><span style="font-family:'DM Mono',monospace;color:var(--gold)">${s.reg}</span></td>
+      <td>${s.name}</td><td>${s.level}</td><td>${s.gender}</td>
+      <td><span class="badge" style="background:rgba(201,168,76,0.15);color:var(--gold-light)">${rc}</span></td>
+      <td><button class="btn btn-danger btn-sm" onclick="removeStudent('${s.id}')">✕</button></td>
+    </tr>`;
+  }).join('');
+}
+
+function renderHodSubjects(){
+  const list=DB.subjects.filter(s=>s.dept===CURRENT.dept);
+  const tbody=document.getElementById('hod-subjects-body');
+  const tradeRows=list.length
+    ? `<tr><td colspan="5" style="background:rgba(37,99,235,0.1);font-weight:700;font-size:0.76rem;color:#60a5fa;padding:0.4rem 0.9rem;">TRADE / VOCATIONAL SUBJECTS</td></tr>`
+      + list.map(s=>`<tr>
+          <td><span style="font-family:'DM Mono',monospace;color:var(--gold)">${s.code}</span></td>
+          <td>${s.title}</td><td>${s.level}</td><td>${s.units}</td>
+          <td><button class="btn btn-danger btn-sm" onclick="removeSubject('${s.id}')">✕</button></td>
+        </tr>`).join('')
+    : `<tr><td colspan="5"><div class="empty" style="padding:1rem"><p>No trade subjects yet. Add above.</p></div></td></tr>`;
+  const gedRows=`<tr><td colspan="5" style="background:rgba(201,168,76,0.1);font-weight:700;font-size:0.76rem;color:var(--gold);padding:0.4rem 0.9rem;">GENERAL EDUCATION SUBJECTS (All Students)</td></tr>`
+    + GED_SUBJECTS.map(s=>`<tr>
+        <td><span style="font-family:'DM Mono',monospace;color:var(--gold-light)">${s.code}</span></td>
+        <td>${s.title}</td><td>All Levels</td><td>${s.units}</td>
+        <td><span style="font-size:0.72rem;color:var(--muted)">Auto-included</span></td>
+      </tr>`).join('');
+  tbody.innerHTML = tradeRows + gedRows;
+}
+
+// ================================================================
+// TEACHER SCORE ENTRY
+// ================================================================
+function renderTeacherDepts(){
+  const sel=document.getElementById('t-dept');
+  const cur=sel.value;
+  sel.innerHTML='<option value="">-- Select Department --</option>';
+  DEPARTMENTS.forEach(d=>{
+    if(CURRENT.role==='teacher' && CURRENT.dept && CURRENT.dept!==d.id) return;
+    const o=document.createElement('option');
+    o.value=d.id; o.textContent=d.name; sel.appendChild(o);
+  });
+  sel.value=cur;
+  if(CURRENT.role==='teacher' && CURRENT.dept){ sel.value=CURRENT.dept; loadTeacherSubjects(); }
+}
+
+function loadTeacherSubjects(){
+  const dept=document.getElementById('t-dept').value;
+  const sel=document.getElementById('t-subject');
+  sel.innerHTML='<option value="">-- Select Subject --</option>';
+  if(!dept) return;
+  // Department-specific subjects
+  const deptSubs=DB.subjects.filter(s=>s.dept===dept);
+  if(deptSubs.length){
+    const grp=document.createElement('optgroup'); grp.label='--- Trade Subjects ---';
+    deptSubs.forEach(s=>{ const o=document.createElement('option'); o.value=s.code; o.textContent=`${s.code} — ${s.title} (${s.level})`; grp.appendChild(o); });
+    sel.appendChild(grp);
+  }
+  // General Education subjects (all students)
+  const gedGrp=document.createElement('optgroup'); gedGrp.label='--- General Education (All Students) ---';
+  GED_SUBJECTS.forEach(s=>{ const o=document.createElement('option'); o.value=s.code; o.textContent=`${s.code} — ${s.title}`; gedGrp.appendChild(o); });
+  sel.appendChild(gedGrp);
+  document.getElementById('t-score-panel').style.display='none';
+}
+
+function loadStudentsForScoring(){
+  const dept=document.getElementById('t-dept').value;
+  const subCode=document.getElementById('t-subject').value;
+  const level=document.getElementById('t-level').value;
+  if(!dept||!subCode){ document.getElementById('t-score-panel').style.display='none'; return; }
+  // Check if it's a GED subject or dept subject
+  const gedSub=GED_SUBJECTS.find(s=>s.code===subCode);
+  const deptSub=DB.subjects.find(s=>s.code===subCode&&s.dept===dept);
+  const sub = gedSub ? {...gedSub, dept:'GED', isGed:true} : deptSub;
+  if(!sub) return;
+  document.getElementById('t-subject-label').textContent=`${sub.code} — ${sub.title}${sub.isGed?' (General Education)':''}`;
+  let students=DB.students.filter(s=>s.dept===dept);
+  if(level) students=students.filter(s=>s.level===level);
+  else if(!sub.isGed && sub.level) students=students.filter(s=>s.level===sub.level);
+  const tbody=document.getElementById('t-score-body');
+  if(!students.length){ tbody.innerHTML=`<tr><td colspan="7"><div class="empty"><div class="ei">👥</div><p>No students found. Ask HOD to add students first.</p></div></td></tr>`; document.getElementById('t-score-panel').style.display='block'; return; }
+  tbody.innerHTML=students.map((s,i)=>{
+    const existing=DB.results.find(r=>r.studentReg===s.reg&&r.subjectCode===subCode);
+    const ca=existing?existing.ca:''; const ex=existing?existing.exam:'';
+    return `<tr id="trow-${i}">
+      <td><span style="font-family:'DM Mono',monospace">${s.reg}</span></td>
+      <td>${s.name}</td><td>${s.level}</td>
+      <td><input type="number" min="0" max="40" placeholder="0-40" value="${ca}" id="tca-${i}" oninput="calcTRow(${i})"/></td>
+      <td><input type="number" min="0" max="60" placeholder="0-60" value="${ex}" id="tex-${i}" oninput="calcTRow(${i})"/></td>
+      <td id="ttot-${i}" style="font-weight:600">${existing?existing.total:'—'}</td>
+      <td id="tgrd-${i}">${existing?`<span class="badge badge-${existing.grade}">${existing.grade}</span>`:'—'}</td>
+    </tr>`;
+  }).join('');
+  document.getElementById('t-score-panel').style.display='block';
+  // Store students array for submit
+  window._scoringStudents = students;
+  window._scoringSubject = sub;
+}
+
+function calcTRow(i){
+  const ca=parseFloat(document.getElementById('tca-'+i)?.value)||0;
+  const ex=parseFloat(document.getElementById('tex-'+i)?.value)||0;
+  const tot=ca+ex; const g=calcGrade(tot);
+  document.getElementById('ttot-'+i).textContent=tot;
+  document.getElementById('tgrd-'+i).innerHTML=`<span class="badge badge-${g}">${g}</span>`;
+}
+
+function submitTeacherScores(){
+  const students=window._scoringStudents||[];
+  const sub=window._scoringSubject;
+  const session=document.getElementById('t-session').value;
+  if(!sub||!students.length){ toast('No students loaded',false); return; }
+  let saved=0;
+  students.forEach((s,i)=>{
+    const ca=parseFloat(document.getElementById('tca-'+i)?.value);
+    const ex=parseFloat(document.getElementById('tex-'+i)?.value);
+    if(isNaN(ca)||isNaN(ex)) return;
+    const total=ca+ex; const grade=calcGrade(total);
+    DB.results=DB.results.filter(r=>!(r.studentReg===s.reg&&r.subjectCode===sub.code));
+    DB.results.push({
+      studentReg:s.reg, studentName:s.name, dept:s.dept,
+      subjectCode:sub.code, subjectTitle:sub.title, level:s.level,
+      units:sub.units, ca, exam:ex, total, grade,
+      teacher:CURRENT.name, session, isGed:sub.isGed||false
+    });
+    saved++;
+  });
+  save(); toast(`${saved} score(s) saved!`);
+}
+
+// ================================================================
+// RESULTS VIEW
+// ================================================================
+function populateResultFilters(){
+  ['r-dept','a-dept-filter'].forEach(id=>{
+    const sel=document.getElementById(id); if(!sel)return;
+    const cur=sel.value;
+    sel.innerHTML=id==='r-dept'?'<option value="">All Departments</option>':'<option value="">All Departments</option>';
+    DEPARTMENTS.forEach(d=>{ const o=document.createElement('option'); o.value=d.id; o.textContent=d.name; sel.appendChild(o); });
+    sel.value=cur;
+  });
+}
+
+function searchResults(){
+  const dept=document.getElementById('r-dept')?.value||'';
+  const level=document.getElementById('r-level')?.value||'';
+  const q=(document.getElementById('r-search')?.value||'').toLowerCase().trim();
+  document.getElementById('r-sheet-wrap').style.display='none';
+  let students=DB.students;
+  if(dept) students=students.filter(s=>s.dept===dept);
+  if(level) students=students.filter(s=>s.level===level);
+  if(q) students=students.filter(s=>s.name.toLowerCase().includes(q)||s.reg.toLowerCase().includes(q));
+  const listEl=document.getElementById('r-list');
+  if(!students.length){ listEl.innerHTML='<div class="empty"><div class="ei">🔍</div><p>No students found.</p></div>'; return; }
+  listEl.innerHTML=`<div class="wrap"><table class="tbl"><thead><tr><th>Reg. No.</th><th>Name</th><th>Department</th><th>Level</th><th>Results</th><th></th></tr></thead>
+  <tbody>${students.map(s=>{
+    const rc=DB.results.filter(r=>r.studentReg===s.reg).length;
+    return `<tr>
+      <td><span style="font-family:'DM Mono',monospace;color:var(--gold)">${s.reg}</span></td>
+      <td>${s.name}</td>
+      <td>${getDeptIcon(s.dept)} ${getDeptName(s.dept)}</td>
+      <td>${s.level}</td>
+      <td><span class="badge" style="background:rgba(201,168,76,0.15);color:var(--gold-light)">${rc} subject(s)</span></td>
+      <td><button class="btn btn-primary btn-sm" onclick="viewStudentResult('${s.reg}')">📄 View</button></td>
+    </tr>`;
+  }).join('')}</tbody></table></div>`;
+}
+
+function viewStudentResult(reg){
+  const student=DB.students.find(s=>s.reg===reg);
+  if(!student) return;
+  const records=DB.results.filter(r=>r.studentReg===reg);
+  if(!records.length){ toast('No results found for this student',false); return; }
+  const totalUnits=records.reduce((s,r)=>s+r.units,0);
+  const totalWGP=records.reduce((s,r)=>s+(calcGP(r.grade)*r.units),0);
+  const gpa=totalUnits?(totalWGP/totalUnits).toFixed(2):'0.00';
+  const avg=records.length?Math.round(records.reduce((s,r)=>s+r.total,0)/records.length):0;
+  const tradeRecs=records.filter(r=>!r.isGed);
+  const gedRecs=records.filter(r=>r.isGed);
+  const makeRows=arr=>arr.map(r=>`<tr>
+    <td>${r.subjectCode}</td><td>${r.subjectTitle}</td><td>${r.units}</td>
+    <td>${r.ca}</td><td>${r.exam}</td><td><strong>${r.total}</strong></td>
+    <td><strong>${r.grade}</strong></td><td>${calcGP(r.grade)}</td><td>${calcGP(r.grade)*r.units}</td>
+  </tr>`).join('');
+  const tradeSection=tradeRecs.length?`<tr><td colspan="9" style="background:#e8f0fe;font-weight:700;font-size:0.78rem;padding:0.4rem 0.75rem;color:#1e3a5f;">TRADE / VOCATIONAL SUBJECTS</td></tr>${makeRows(tradeRecs)}`:'';
+  const gedSection=gedRecs.length?`<tr><td colspan="9" style="background:#fef9e7;font-weight:700;font-size:0.78rem;padding:0.4rem 0.75rem;color:#7d6608;">GENERAL EDUCATION SUBJECTS</td></tr>${makeRows(gedRecs)}`:'';
+  const rows=tradeSection+gedSection;
+  document.getElementById('r-sheet-content').innerHTML=`
+    <div class="rs-header">
+      <h2>${DB.settings.name}</h2>
+      <p>Department of ${getDeptName(student.dept)}</p>
+      <p style="font-size:0.76rem;color:#888;margin-top:0.2rem">${DB.settings.session} — ${DB.settings.term}</p>
+    </div>
+    <dl class="rs-meta">
+      <dt>Student Name</dt><dd>${student.name}</dd>
+      <dt>Reg. Number</dt><dd>${student.reg}</dd>
+      <dt>Department</dt><dd>${getDeptName(student.dept)}</dd>
+      <dt>Level</dt><dd>${student.level}</dd>
+      <dt>Gender</dt><dd>${student.gender}</dd>
+      <dt>Session</dt><dd>${DB.settings.session} — ${DB.settings.term}</dd>
+    </dl>
+    <table class="rs-tbl">
+      <thead><tr><th>Code</th><th>Subject</th><th>Units</th><th>CA(40)</th><th>Exam(60)</th><th>Total</th><th>Grade</th><th>GP</th><th>WGP</th></tr></thead>
+      <tbody>${rows}</tbody>
+      <tfoot><tr style="background:#f3f4f6;font-weight:700"><td colspan="2">TOTALS</td><td>${totalUnits}</td><td colspan="5"></td><td>${totalWGP}</td></tr></tfoot>
+    </table>
+    <div class="rs-summary">
+      <div class="rs-summary-item"><div class="sv">${avg}%</div><div class="sl">Average</div></div>
+      <div class="rs-summary-item"><div class="sv">${gpa}</div><div class="sl">GPA</div></div>
+      <div class="rs-summary-item"><div class="sv">${totalUnits}</div><div class="sl">Total Units</div></div>
+    </div>
+    <div class="rs-footer">
+      <span>Printed: ${new Date().toLocaleDateString()}</span>
+      <span>${DB.settings.principal?'Principal: '+DB.settings.principal:DB.settings.name}</span>
+    </div>`;
+  document.getElementById('r-sheet-wrap').style.display='block';
+  document.getElementById('r-sheet-wrap').scrollIntoView({behavior:'smooth'});
+}
+
+function printSheet(){
+  document.getElementById('print-area').innerHTML=`<div class="result-sheet">${document.getElementById('r-sheet-content').innerHTML}</div>`;
+  window.print();
+}
+
+// ================================================================
+// ADMIN
+// ================================================================
+function saveAdminSettings(){
+  DB.settings.name=document.getElementById('a-name').value;
+  DB.settings.session=document.getElementById('a-session').value;
+  DB.settings.term=document.getElementById('a-term').value;
+  DB.settings.principal=document.getElementById('a-principal').value;
+  save(); toast('Settings saved!');
+}
+
+function renderAdminStats(){
+  document.getElementById('a-stat-s').textContent=DB.students.length;
+  document.getElementById('a-stat-r').textContent=DB.results.length;
+  document.getElementById('a-stat-sub').textContent=DB.subjects.length;
+  const avg=DB.results.length?Math.round(DB.results.reduce((s,r)=>s+r.total,0)/DB.results.length):null;
+  document.getElementById('a-stat-avg').textContent=avg!==null?avg+'%':'—';
+}
+
+function renderAdminResults(){
+  const q=(document.getElementById('a-search')?.value||'').toLowerCase();
+  const df=document.getElementById('a-dept-filter')?.value||'';
+  let rows=DB.results;
+  if(q) rows=rows.filter(r=>r.studentReg.toLowerCase().includes(q)||r.studentName.toLowerCase().includes(q)||r.subjectCode.toLowerCase().includes(q));
+  if(df) rows=rows.filter(r=>r.dept===df);
+  const tbody=document.getElementById('a-results-body');
+  if(!rows.length){ tbody.innerHTML=`<tr><td colspan="10"><div class="empty"><div class="ei">📭</div><p>No results yet.</p></div></td></tr>`; return; }
+  tbody.innerHTML=rows.map((r,i)=>`<tr>
+    <td><span style="font-family:'DM Mono',monospace">${r.studentReg}</span></td>
+    <td>${r.studentName}</td>
+    <td style="font-size:0.78rem">${getDeptIcon(r.dept)} ${getDeptName(r.dept)}</td>
+    <td>${r.subjectCode}</td><td>${r.level}</td>
+    <td>${r.ca}</td><td>${r.exam}</td>
+    <td><strong>${r.total}</strong></td>
+    <td><span class="badge badge-${r.grade}">${r.grade}</span></td>
+    <td><button class="btn btn-danger btn-sm" onclick="delResult(${DB.results.indexOf(r)})">✕</button></td>
+  </tr>`).join('');
+}
+
+function delResult(idx){ if(!confirm('Delete?'))return; DB.results.splice(idx,1); save(); renderAdminResults(); renderAdminStats(); toast('Deleted'); }
+
+function populateAdminFilters(){
+  populateResultFilters();
+  renderAdminStats();
+}
+
+// Init
+populateResultFilters();
+</script>
+</body>
+</html>
