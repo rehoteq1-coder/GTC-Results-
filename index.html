@@ -1,0 +1,1305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>GTC Okitipupa — Result Management System</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<style>
+:root{--navy:#0a0f2c;--deep:#111827;--gold:#c9a84c;--gold-light:#e8c97a;--white:#ffffff;--muted:#6b7280;--success:#16a34a;--danger:#dc2626;--border:rgba(201,168,76,0.2);}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'DM Sans',sans-serif;background:var(--navy);color:var(--white);min-height:100vh;}
+body::before{content:'';position:fixed;inset:0;z-index:0;background:radial-gradient(ellipse 80% 60% at 20% 10%,rgba(30,58,95,0.6) 0%,transparent 60%),radial-gradient(ellipse 60% 40% at 80% 80%,rgba(201,168,76,0.08) 0%,transparent 50%);pointer-events:none;}
+.app{position:relative;z-index:1;}
+header{display:flex;align-items:center;justify-content:space-between;padding:1rem 2rem;border-bottom:1px solid var(--border);backdrop-filter:blur(10px);background:rgba(10,15,44,0.9);position:sticky;top:0;z-index:100;flex-wrap:wrap;gap:0.5rem;}
+.logo{display:flex;align-items:center;gap:0.75rem;}
+.logo-icon{width:38px;height:38px;background:linear-gradient(135deg,var(--gold),var(--gold-light));border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:1.1rem;}
+.logo-text{font-family:'Playfair Display',serif;font-size:1.1rem;font-weight:700;}
+.logo-text span{color:var(--gold);}
+nav{display:flex;gap:0.4rem;flex-wrap:wrap;}
+.nav-btn{padding:0.45rem 0.9rem;border-radius:7px;border:1px solid transparent;background:transparent;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:0.82rem;cursor:pointer;transition:all 0.2s;}
+.nav-btn:hover{color:var(--white);border-color:var(--border);}
+.nav-btn.active{background:linear-gradient(135deg,var(--gold),var(--gold-light));color:var(--navy);font-weight:600;}
+.user-badge{background:rgba(201,168,76,0.15);border:1px solid var(--border);border-radius:20px;padding:0.3rem 0.9rem;font-size:0.8rem;color:var(--gold-light);display:flex;align-items:center;gap:0.4rem;}
+section{display:none;padding:2rem;max-width:1100px;margin:0 auto;}
+section.active{display:block;animation:fadeUp 0.35s ease;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+.panel{background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:14px;padding:1.8rem;margin-bottom:1.4rem;}
+.panel-title{font-family:'Playfair Display',serif;font-size:1.2rem;margin-bottom:1.3rem;display:flex;align-items:center;gap:0.5rem;}
+.panel-title span{color:var(--gold);}
+.form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:0.9rem;}
+.form-group{display:flex;flex-direction:column;gap:0.35rem;}
+label{font-size:0.76rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;font-weight:500;}
+input,select{background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:7px;padding:0.6rem 0.85rem;color:var(--white);font-family:'DM Sans',sans-serif;font-size:0.92rem;transition:border 0.2s;width:100%;}
+input:focus,select:focus{outline:none;border-color:var(--gold);background:rgba(201,168,76,0.06);}
+select option{background:var(--deep);}
+.btn{padding:0.6rem 1.3rem;border-radius:7px;border:none;font-family:'DM Sans',sans-serif;font-size:0.88rem;font-weight:600;cursor:pointer;transition:all 0.2s;display:inline-flex;align-items:center;gap:0.4rem;}
+.btn-primary{background:linear-gradient(135deg,var(--gold),var(--gold-light));color:var(--navy);}
+.btn-primary:hover{transform:translateY(-1px);box-shadow:0 4px 18px rgba(201,168,76,0.3);}
+.btn-ghost{background:transparent;color:var(--gold);border:1px solid var(--gold);}
+.btn-ghost:hover{background:rgba(201,168,76,0.1);}
+.btn-danger{background:rgba(220,38,38,0.15);color:#f87171;border:1px solid rgba(220,38,38,0.3);}
+.btn-danger:hover{background:rgba(220,38,38,0.25);}
+.btn-sm{padding:0.32rem 0.75rem;font-size:0.76rem;}
+.btn-success{background:rgba(22,163,74,0.2);color:#4ade80;border:1px solid rgba(22,163,74,0.3);}
+.stats-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:1rem;margin-bottom:1.4rem;}
+.stat-card{background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:11px;padding:1.1rem;text-align:center;}
+.stat-card .val{font-family:'Playfair Display',serif;font-size:1.8rem;color:var(--gold);}
+.stat-card .lbl{color:var(--muted);font-size:0.76rem;margin-top:0.2rem;}
+.tbl{width:100%;border-collapse:collapse;font-size:0.86rem;}
+.tbl th{text-align:left;padding:0.6rem 0.9rem;background:rgba(201,168,76,0.07);color:var(--gold);font-size:0.72rem;text-transform:uppercase;letter-spacing:0.06em;border-bottom:1px solid var(--border);}
+.tbl td{padding:0.6rem 0.9rem;border-bottom:1px solid rgba(255,255,255,0.04);vertical-align:middle;}
+.tbl tr:hover td{background:rgba(255,255,255,0.02);}
+.tbl td input{padding:0.35rem 0.55rem;font-size:0.83rem;min-width:70px;}
+.badge{display:inline-block;padding:0.18rem 0.55rem;border-radius:18px;font-size:0.72rem;font-weight:600;}
+.badge-A{background:rgba(22,163,74,0.2);color:#4ade80;}
+.badge-B{background:rgba(37,99,235,0.2);color:#60a5fa;}
+.badge-C{background:rgba(234,179,8,0.2);color:#facc15;}
+.badge-D{background:rgba(217,119,6,0.2);color:#fb923c;}
+.badge-F{background:rgba(220,38,38,0.2);color:#f87171;}
+.dept-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem;margin-top:1rem;}
+.dept-card{background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:12px;padding:1.3rem;cursor:pointer;transition:all 0.25s;}
+.dept-card:hover{background:rgba(201,168,76,0.08);border-color:var(--gold);transform:translateY(-3px);}
+.dept-card .di{font-size:1.6rem;margin-bottom:0.6rem;}
+.dept-card h3{font-size:0.88rem;margin-bottom:0.25rem;}
+.dept-card p{color:var(--muted);font-size:0.76rem;}
+.search-bar{display:flex;gap:0.8rem;align-items:center;margin-bottom:1.3rem;flex-wrap:wrap;}
+.search-bar input{flex:1;min-width:180px;}
+.flex-end{display:flex;justify-content:flex-end;gap:0.65rem;flex-wrap:wrap;margin-top:0.9rem;}
+.flex-between{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.9rem;margin-bottom:1.3rem;}
+.divider{height:1px;background:var(--border);margin:1.3rem 0;}
+.empty{text-align:center;padding:2.5rem 1rem;color:var(--muted);}
+.empty .ei{font-size:2.2rem;margin-bottom:0.5rem;}
+.text-gold{color:var(--gold);}
+.text-muted{color:var(--muted);font-size:0.83rem;}
+.mt1{margin-top:0.9rem;}.mb1{margin-bottom:0.9rem;}
+.wrap{overflow-x:auto;}
+#toast{position:fixed;bottom:1.8rem;right:1.8rem;z-index:999;background:var(--success);color:#fff;padding:0.75rem 1.3rem;border-radius:9px;font-size:0.88rem;font-weight:500;transform:translateY(70px);opacity:0;transition:all 0.3s;pointer-events:none;max-width:300px;}
+#toast.show{transform:translateY(0);opacity:1;}
+.sync-indicator{display:inline-flex;align-items:center;gap:0.4rem;font-size:0.75rem;padding:0.25rem 0.7rem;border-radius:20px;background:rgba(22,163,74,0.15);color:#4ade80;border:1px solid rgba(22,163,74,0.3);}
+.sync-indicator.offline{background:rgba(220,38,38,0.15);color:#f87171;border-color:rgba(220,38,38,0.3);}
+.sync-indicator.syncing{background:rgba(234,179,8,0.15);color:#facc15;border-color:rgba(234,179,8,0.3);}
+.login-wrap{min-height:80vh;display:flex;align-items:center;justify-content:center;}
+.login-box{background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:18px;padding:2.5rem;width:100%;max-width:420px;text-align:center;}
+.login-box h2{font-family:'Playfair Display',serif;font-size:1.6rem;margin-bottom:0.5rem;}
+.login-box p{color:var(--muted);font-size:0.88rem;margin-bottom:1.8rem;}
+.login-box .form-group{text-align:left;margin-bottom:1rem;}
+.role-tabs{display:flex;gap:0.5rem;margin-bottom:1.5rem;justify-content:center;flex-wrap:wrap;}
+.role-tab{padding:0.4rem 1rem;border-radius:20px;border:1px solid var(--border);background:transparent;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:0.82rem;cursor:pointer;transition:all 0.2s;}
+.role-tab.active{background:var(--gold);color:var(--navy);font-weight:600;border-color:transparent;}
+.firebase-setup{background:rgba(255,152,0,0.1);border:1px solid rgba(255,152,0,0.3);border-radius:12px;padding:1.5rem;margin-bottom:1.5rem;}
+.firebase-setup h3{color:#ffb74d;margin-bottom:0.5rem;font-size:1rem;}
+.firebase-setup p{color:var(--muted);font-size:0.83rem;margin-bottom:1rem;}
+.firebase-setup input{margin-bottom:0.5rem;}
+.result-sheet{background:#fff;color:#111;border-radius:12px;padding:2.2rem;max-width:700px;margin:0 auto;}
+.rs-header{text-align:center;border-bottom:3px double #0a0f2c;padding-bottom:1rem;margin-bottom:1.3rem;}
+.rs-header h2{font-family:'Playfair Display',serif;font-size:1.4rem;color:#0a0f2c;}
+.rs-header p{font-size:0.82rem;color:#555;margin-top:0.25rem;}
+.rs-meta{display:grid;grid-template-columns:1fr 1fr;gap:0.4rem 1.8rem;margin-bottom:1.3rem;font-size:0.86rem;}
+.rs-meta dt{color:#555;font-size:0.76rem;}
+.rs-meta dd{font-weight:600;color:#111;}
+.rs-tbl{width:100%;border-collapse:collapse;margin-bottom:1.3rem;font-size:0.84rem;}
+.rs-tbl th{background:#0a0f2c;color:#fff;padding:0.45rem 0.75rem;text-align:left;font-size:0.74rem;}
+.rs-tbl td{padding:0.45rem 0.75rem;border-bottom:1px solid #e5e7eb;}
+.rs-tbl tr:nth-child(even) td{background:#f9fafb;}
+.rs-summary{display:flex;gap:1.8rem;justify-content:flex-end;flex-wrap:wrap;margin-top:0.8rem;}
+.rs-summary-item{text-align:center;}
+.rs-summary-item .sv{font-family:'Playfair Display',serif;font-size:1.7rem;color:#0a0f2c;}
+.rs-summary-item .sl{font-size:0.72rem;color:#555;}
+.rs-footer{margin-top:1.3rem;border-top:1px solid #e5e7eb;padding-top:0.9rem;display:flex;justify-content:space-between;font-size:0.76rem;color:#888;}
+#print-area{display:none;}
+@media print{body>*:not(#print-area){display:none!important;}#print-area{display:block!important;}.no-print{display:none!important;}}
+@media(max-width:600px){header{padding:0.8rem 1rem;}section{padding:1rem;}.panel{padding:1.1rem;}}
+</style>
+</head>
+<body>
+<div class="app">
+<header>
+  <div class="logo">
+    <div class="logo-icon">🎓</div>
+    <div class="logo-text">GTC <span>Okitipupa</span></div>
+  </div>
+  <nav id="main-nav" style="display:none;">
+    <button class="nav-btn active" onclick="showSection('dashboard',this)">🏠 Home</button>
+    <button class="nav-btn" onclick="showSection('hod',this)" id="nav-hod" style="display:none">👩‍💼 HOD Panel</button>
+    <button class="nav-btn" onclick="showSection('teacher',this)" id="nav-teacher" style="display:none">✍️ Score Entry</button>
+    <button class="nav-btn" onclick="showSection('results',this)">📊 Results</button>
+    <button class="nav-btn" onclick="showSection('admin',this)" id="nav-admin" style="display:none">⚙️ Admin</button>
+  </nav>
+  <div style="display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap;">
+    <div class="sync-indicator" id="sync-badge">⚫ Not connected</div>
+    <div class="user-badge" id="user-badge" style="display:none">👤 <span id="user-label">Guest</span></div>
+    <button class="btn btn-ghost btn-sm" id="logout-btn" style="display:none" onclick="logout()">Logout</button>
+  </div>
+</header>
+
+<!-- LOGIN -->
+<section id="login" class="active">
+  <div class="login-wrap">
+    <div class="login-box">
+      <div style="font-size:2.5rem;margin-bottom:0.8rem;">🎓</div>
+      <h2>GTC Okitipupa</h2>
+      <p>Government Technical College, Okitipupa<br/>Result Management System</p>
+      <!-- Firebase setup (shown only if not configured) -->
+      <div class="firebase-setup" id="firebase-setup-box">
+        <h3>🔥 Firebase Setup Required</h3>
+        <p>Enter your Firebase config to enable real-time sync across all devices. Ask your admin for these details.</p>
+        <div class="form-group"><label>Firebase Database URL</label>
+          <input type="text" id="fb-url" placeholder="https://your-project.firebaseio.com"/></div>
+        <div class="form-group"><label>API Key</label>
+          <input type="text" id="fb-key" placeholder="AIza..."/></div>
+        <div class="form-group"><label>Project ID</label>
+          <input type="text" id="fb-pid" placeholder="your-project-id"/></div>
+        <button class="btn btn-primary" style="width:100%;justify-content:center;" onclick="saveFirebaseConfig()">🔥 Connect to Firebase</button>
+      </div>
+      <div class="role-tabs">
+        <button class="role-tab active" onclick="setRole('admin',this)">Admin</button>
+        <button class="role-tab" onclick="setRole('hod',this)">HOD</button>
+        <button class="role-tab" onclick="setRole('teacher',this)">Teacher</button>
+        <button class="role-tab" onclick="setRole('student',this)">🎓 Student / Parent</button>
+      </div>
+      <div class="form-group" id="student-dept-group" style="display:none;">
+        <label>Your Department</label>
+        <select id="student-dept"></select>
+      </div>
+      <div class="form-group" id="student-name-group" style="display:none;">
+        <label>Your Full Name</label>
+        <input type="text" id="student-name" placeholder="Enter your full name" onkeydown="if(event.key==='Enter')doLogin()"/>
+      </div>
+      <div class="form-group">
+        <label id="username-label">Username</label>
+        <input type="text" id="login-user" placeholder="Enter your name"/>
+      </div>
+      <div class="form-group" id="pass-group">
+        <label>Password</label>
+        <input type="password" id="login-pass" placeholder="Enter password" onkeydown="if(event.key==='Enter')doLogin()"/>
+      </div>
+      <div class="form-group" id="dept-group" style="display:none;">
+        <label>Your Department</label>
+        <select id="login-dept"></select>
+      </div>
+      <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:0.5rem;" onclick="doLogin()">Login →</button>
+      <p class="text-muted mt1" style="font-size:0.75rem;" id="login-hint">Admin password: admin123 | HOD: your last name | Teacher: teacher123</p>
+    </div>
+  </div>
+</section>
+
+<!-- DASHBOARD -->
+<section id="dashboard">
+  <div class="flex-between">
+    <div>
+      <h2 class="panel-title">🏠 <span>Dashboard</span></h2>
+      <p class="text-muted" id="dash-welcome">Welcome to GTC Okitipupa Result Management System</p>
+    </div>
+  </div>
+  <div class="stats-row">
+    <div class="stat-card"><div class="val" id="ds-students">0</div><div class="lbl">Total Students</div></div>
+    <div class="stat-card"><div class="val" id="ds-depts">11</div><div class="lbl">Departments</div></div>
+    <div class="stat-card"><div class="val" id="ds-results">0</div><div class="lbl">Results Entered</div></div>
+    <div class="stat-card"><div class="val" id="ds-subjects">0</div><div class="lbl">Subjects</div></div>
+  </div>
+  <div class="panel">
+    <div class="panel-title">🏛️ <span>Departments</span></div>
+    <div class="dept-grid" id="dept-grid"></div>
+  </div>
+</section>
+
+<!-- HOD PANEL -->
+<section id="hod">
+  <div class="flex-between">
+    <div><h2 class="panel-title">👩‍💼 HOD <span>Panel</span></h2>
+    <p class="text-muted" id="hod-dept-label">Manage your department students and subjects</p></div>
+  </div>
+  <div class="panel">
+    <div class="panel-title">➕ Add <span>Student</span></div>
+    <div class="form-grid">
+      <div class="form-group"><label>Reg. Number</label><input type="text" id="h-reg" placeholder="e.g. GTC/24/001"/></div>
+      <div class="form-group"><label>Full Name</label><input type="text" id="h-name" placeholder="Student full name"/></div>
+      <div class="form-group"><label>Level</label>
+        <select id="h-level"><option>NTC 1</option><option>NTC 2</option><option>NTC 3</option></select></div>
+      <div class="form-group"><label>Gender</label>
+        <select id="h-gender"><option>Male</option><option>Female</option></select></div>
+    </div>
+    <div class="flex-end"><button class="btn btn-primary" onclick="addStudent()">➕ Add Student</button></div>
+  </div>
+  <div class="panel">
+    <div class="panel-title">📚 Add <span>Subject</span></div>
+    <div class="form-grid">
+      <div class="form-group"><label>Subject Code</label><input type="text" id="h-scode" placeholder="e.g. ELE 101"/></div>
+      <div class="form-group"><label>Subject Title</label><input type="text" id="h-stitle" placeholder="e.g. Basic Electricity"/></div>
+      <div class="form-group"><label>Level</label>
+        <select id="h-slevel"><option>NTC 1</option><option>NTC 2</option><option>NTC 3</option></select></div>
+      <div class="form-group"><label>Units</label><input type="number" id="h-sunits" placeholder="3" min="1" max="6"/></div>
+    </div>
+    <div class="flex-end"><button class="btn btn-primary" onclick="addSubject()">➕ Add Subject</button></div>
+  </div>
+  <div class="panel">
+    <div class="panel-title">👥 <span>Students</span> in Department</div>
+    <div class="search-bar">
+      <input type="text" id="hod-search" placeholder="Search student…" oninput="renderHodStudents()"/>
+      <select id="hod-level-filter" onchange="renderHodStudents()">
+        <option value="">All Levels</option>
+        <option>NTC 1</option><option>NTC 2</option><option>NTC 3</option>
+      </select>
+    </div>
+    <div class="wrap"><table class="tbl"><thead><tr><th>Reg. No.</th><th>Name</th><th>Level</th><th>Gender</th><th></th></tr></thead>
+    <tbody id="hod-students-body"></tbody></table></div>
+  </div>
+  <div class="panel">
+    <div class="panel-title">📚 <span>Subjects</span> in Department</div>
+    <div class="wrap"><table class="tbl"><thead><tr><th>Code</th><th>Title</th><th>Level</th><th>Units</th><th></th></tr></thead>
+    <tbody id="hod-subjects-body"></tbody></table></div>
+  </div>
+</section>
+
+<!-- TEACHER -->
+<section id="teacher">
+  <div class="flex-between">
+    <div><h2 class="panel-title">✍️ Score <span>Entry</span></h2>
+    <p class="text-muted">Select your department and subject to enter scores</p></div>
+  </div>
+  <div class="panel">
+    <div class="panel-title">📌 <span>Select</span> Class</div>
+    <div class="form-grid">
+      <div class="form-group"><label>Department</label>
+        <select id="t-dept" onchange="loadTeacherSubjects()"><option value="">-- Select Department --</option></select></div>
+      <div class="form-group"><label>Subject</label>
+        <select id="t-subject" onchange="loadStudentsForScoring()"><option value="">-- Select Subject --</option></select></div>
+      <div class="form-group" id="ged-target-dept-row" style="display:none;"><label>📖 Apply GED Subject to Department</label>
+        <select id="t-ged-dept" onchange="loadStudentsForScoring()"><option value="">-- Select Department --</option></select></div>
+      <div class="form-group"><label>Level</label>
+        <select id="t-level" onchange="loadStudentsForScoring()">
+          <option value="">All</option><option>NTC 1</option><option>NTC 2</option><option>NTC 3</option>
+        </select></div>
+      <div class="form-group"><label>Session</label>
+        <input type="text" id="t-session" value="2024/2025"/></div>
+    </div>
+  </div>
+  <div class="panel" id="t-score-panel" style="display:none;">
+    <div class="flex-between">
+      <div class="panel-title">📝 Enter <span>Scores</span></div>
+      <span class="text-muted" id="t-subject-label"></span>
+    </div>
+    <div class="wrap">
+      <table class="tbl">
+        <thead><tr><th>Reg. No.</th><th>Student Name</th><th>Level</th><th>Test 1 (10)</th><th>Test 2 (10)</th><th>Test 3 (10)</th><th>Exam (70)</th><th>Total</th><th>Grade</th></tr></thead>
+        <tbody id="t-score-body"></tbody>
+      </table>
+    </div>
+    <div class="flex-end"><button class="btn btn-primary" onclick="submitTeacherScores()">✅ Submit All Scores</button></div>
+  </div>
+</section>
+
+<!-- RESULTS -->
+<section id="results">
+  <div class="flex-between">
+    <div><h2 class="panel-title">📊 View <span>Results</span></h2>
+    <p class="text-muted">Search and print student result sheets</p></div>
+  </div>
+  <div class="panel">
+    <div class="form-grid mb1">
+      <div class="form-group"><label>Department</label>
+        <select id="r-dept" onchange="searchResults()"><option value="">All Departments</option></select></div>
+      <div class="form-group"><label>Level</label>
+        <select id="r-level" onchange="searchResults()"><option value="">All Levels</option><option>NTC 1</option><option>NTC 2</option><option>NTC 3</option></select></div>
+      <div class="form-group"><label>Search Student</label>
+        <input type="text" id="r-search" placeholder="Name or Reg. No." oninput="searchResults()"/></div>
+    </div>
+    <div id="r-list"></div>
+  </div>
+  <div id="r-sheet-wrap" style="display:none;">
+    <div class="flex-end no-print mb1">
+      <button class="btn btn-ghost" onclick="document.getElementById('r-sheet-wrap').style.display='none'">✖ Close</button>
+      <button class="btn btn-primary" onclick="printSheet()">🖨️ Print Result</button>
+    </div>
+    <div class="result-sheet" id="r-sheet-content"></div>
+  </div>
+</section>
+
+<!-- ADMIN -->
+<section id="admin">
+  <div class="flex-between">
+    <div><h2 class="panel-title">⚙️ <span>Admin</span> Panel</h2>
+    <p class="text-muted">School-wide settings and full data overview</p></div>
+  </div>
+  <div class="panel">
+    <div class="panel-title">🏫 School <span>Settings</span></div>
+    <div class="form-grid">
+      <div class="form-group"><label>School Name</label><input type="text" id="a-name" value="Government Technical College, Okitipupa"/></div>
+      <div class="form-group"><label>Session</label><input type="text" id="a-session" value="2024/2025"/></div>
+      <div class="form-group"><label>Term</label>
+        <select id="a-term"><option>First Term</option><option>Second Term</option><option>Third Term</option></select></div>
+      <div class="form-group"><label>Principal Name</label><input type="text" id="a-principal" placeholder="e.g. Mr. Adeyemi"/></div>
+    </div>
+    <div class="flex-end"><button class="btn btn-primary" onclick="saveAdminSettings()">💾 Save Settings</button></div>
+  </div>
+  <div class="stats-row">
+    <div class="stat-card"><div class="val" id="a-stat-s">0</div><div class="lbl">Total Students</div></div>
+    <div class="stat-card"><div class="val" id="a-stat-r">0</div><div class="lbl">Total Results</div></div>
+    <div class="stat-card"><div class="val" id="a-stat-sub">0</div><div class="lbl">Total Subjects</div></div>
+    <div class="stat-card"><div class="val" id="a-stat-avg">—</div><div class="lbl">Overall Average</div></div>
+  </div>
+  <div class="panel">
+    <div class="panel-title">📥 <span>Import</span> Existing Data</div>
+    <p class="text-muted mb1">If HODs already entered data on their devices, they can export it here and you can import it into Firebase so everyone can see it.</p>
+    <div class="form-group mb1"><label>Paste exported data below</label>
+      <textarea id="import-data" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:7px;padding:0.6rem;color:var(--white);width:100%;min-height:100px;font-family:'DM Mono',monospace;font-size:0.8rem;" placeholder='Paste JSON data here...'></textarea></div>
+    <div class="flex-end">
+      <button class="btn btn-success" onclick="exportData()">📤 Export Current Data</button>
+      <button class="btn btn-primary" onclick="importData()">📥 Import Data</button>
+    </div>
+  </div>
+  <div class="panel">
+    <div class="panel-title">📊 <span>Broadsheet</span> Download</div>
+    <p class="text-muted mb1">Download a complete broadsheet of all students, subjects and scores as a CSV file that opens in Excel or Google Sheets.</p>
+    <div style="display:flex;gap:0.8rem;flex-wrap:wrap;align-items:center;">
+      <select id="bs-dept-filter" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:7px;padding:0.5rem 0.8rem;color:var(--white);font-family:'DM Sans',sans-serif;">
+        <option value="">All Departments</option>
+      </select>
+      <select id="bs-level-filter" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:7px;padding:0.5rem 0.8rem;color:var(--white);font-family:'DM Sans',sans-serif;">
+        <option value="">All Levels</option>
+        <option>NTC 1</option><option>NTC 2</option><option>NTC 3</option>
+      </select>
+      <button class="btn btn-primary" onclick="downloadBroadsheet()">📥 Download Broadsheet (CSV)</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title">📋 All <span>Results</span></div>
+    <div class="search-bar">
+      <input type="text" id="a-search" placeholder="Search…" oninput="renderAdminResults()"/>
+      <select id="a-dept-filter" onchange="renderAdminResults()"><option value="">All Departments</option></select>
+    </div>
+    <div class="wrap"><table class="tbl"><thead><tr><th>Reg.No.</th><th>Name</th><th>Dept</th><th>Subject</th><th>Level</th><th>T1</th><th>T2</th><th>T3</th><th>CA</th><th>Exam</th><th>Total</th><th>Grade</th><th></th></tr></thead>
+    <tbody id="a-results-body"></tbody></table></div>
+  </div>
+  <div class="panel">
+    <div class="panel-title">🔐 Change <span>Passwords</span></div>
+    <p class="text-muted mb1">Leave blank to keep current password.</p>
+    <div class="form-grid">
+      <div class="form-group"><label>New Admin Password</label><input type="password" id="pw-admin" placeholder="New admin password"/></div>
+      <div class="form-group"><label>Confirm Admin Password</label><input type="password" id="pw-admin2" placeholder="Repeat admin password"/></div>
+      <div class="form-group"><label>New Teacher Password</label><input type="password" id="pw-teacher" placeholder="New teacher password"/></div>
+    </div>
+    <div class="divider"></div>
+    <p class="text-muted mb1">🏛️ <strong style="color:var(--white)">HOD Passwords per Department</strong></p>
+    <div class="form-grid" id="hod-pw-grid"></div>
+    <div class="flex-end"><button class="btn btn-primary" onclick="changePasswords()">🔐 Update Passwords</button></div>
+  </div>
+  <div class="panel">
+    <div class="panel-title">🗑️ <span>Data</span> Management</div>
+    <p class="text-muted mb1">Danger zone — use with caution.</p>
+    <div style="display:flex;gap:0.8rem;flex-wrap:wrap;">
+      <button class="btn btn-danger" onclick="if(confirm('Clear ALL results from Firebase?')){DB_REF.child('results').remove();toast('Results cleared');}">🗑️ Clear All Results</button>
+      <button class="btn btn-danger" onclick="if(confirm('Reset ALL data from Firebase?')){DB_REF.remove();toast('All data cleared');}">⚠️ Full Reset</button>
+    </div>
+  </div>
+</section>
+</div>
+
+<!-- STUDENT RESULT VIEW - completely isolated -->
+<div id="student-result-view" style="display:none;position:fixed;inset:0;background:var(--navy);z-index:200;overflow-y:auto;padding:1rem;">
+  <div style="max-width:750px;margin:0 auto;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:0.5rem;">
+      <div style="color:var(--gold);font-family:'Playfair Display',serif;font-size:1.1rem;">🎓 My Result</div>
+      <div style="display:flex;gap:0.5rem;">
+        <button class="btn btn-primary btn-sm" onclick="window.print()">🖨️ Print</button>
+        <button class="btn btn-ghost btn-sm" onclick="document.getElementById('student-result-view').style.display='none';logout();">✖ Logout</button>
+      </div>
+    </div>
+    <div class="result-sheet" id="my-result-content">
+      <div style="text-align:center;padding:2rem;color:#555;">
+        <div style="font-size:2rem;">⏳</div>
+        <p>Loading your result...</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="print-area"></div>
+<div id="toast">✓ Done!</div>
+
+<script>
+// ================================================================
+// DEPARTMENTS
+// ================================================================
+const DEPARTMENTS = [
+  {id:'ELE', name:'Electrical & Solar PV Installation', icon:'⚡', hodPass:'oluwase'},
+  {id:'CHM', name:'Catering & Hotel Management (CHM)', icon:'🍽️', hodPass:'olorunyomi'},
+  {id:'CGR', name:'Computer & GSM Repair', icon:'💻', hodPass:'egbowon'},
+  {id:'PPF', name:'Plumbing & Pipe Fittings', icon:'🔧', hodPass:'ohunmule'},
+  {id:'BBC', name:'Building, Blocklaying & Concreting', icon:'🏗️', hodPass:'adesuyi'},
+  {id:'BTC', name:'Beauty Therapy & Cosmetology', icon:'💄', hodPass:'adeomo'},
+  {id:'TLC', name:'Tiling & Cladding', icon:'🪟', hodPass:'ajimosun'},
+  {id:'SAI', name:'Smart Agriculture Implementation', icon:'🌾', hodPass:'ajimosun'},
+  {id:'FNC', name:'Furniture & Carpentry', icon:'🪑', hodPass:'oguneso'},
+  {id:'WLD', name:'Welding & Fabrication', icon:'🔥', hodPass:'ajimosun'},
+  {id:'GED', name:'General Education', icon:'📖', hodPass:'general'},
+];
+
+const GED_SUBJECTS = [
+  {code:'GED-MTH', title:'Mathematics', units:3},
+  {code:'GED-ENG', title:'English Language', units:3},
+  {code:'GED-CHM', title:'Chemistry', units:2},
+  {code:'GED-PHY', title:'Physics', units:2},
+  {code:'GED-TDR', title:'Technical Drawing', units:2},
+  {code:'GED-BEL', title:'Basic Electricity', units:2},
+  {code:'GED-CCH', title:'Civic & Cultural Heritage', units:1},
+  {code:'GED-DGT', title:'Digital Technology', units:2},
+];
+
+// ================================================================
+// FIREBASE
+// ================================================================
+let DB_REF = null;
+let LIVE = { students:{}, subjects:{}, results:{}, settings:{} };
+
+function loadFirebaseConfig(){
+  try{ const c=localStorage.getItem('gtc_fb'); if(c) return JSON.parse(c); }catch(e){}
+  return null;
+}
+
+function saveFirebaseConfig(){
+  const url=document.getElementById('fb-url').value.trim();
+  const key=document.getElementById('fb-key').value.trim();
+  const pid=document.getElementById('fb-pid').value.trim();
+  if(!url||!key||!pid){ toast('Fill all Firebase fields',false); return; }
+  const config={apiKey:key,authDomain:`${pid}.firebaseapp.com`,databaseURL:url,projectId:pid,storageBucket:`${pid}.appspot.com`,messagingSenderId:'',appId:''};
+  localStorage.setItem('gtc_fb', JSON.stringify(config));
+  toast('Firebase config saved! Connecting...');
+  initFirebase(config);
+}
+
+function initFirebase(config){
+  try{
+    if(firebase.apps.length===0) firebase.initializeApp(config);
+    DB_REF = firebase.database().ref('gtc_okitipupa');
+    document.getElementById('sync-badge').textContent='🟡 Connecting...';
+    document.getElementById('sync-badge').className='sync-indicator syncing';
+    // Listen to all data in real time
+    DB_REF.child('students').on('value', snap=>{
+      LIVE.students = snap.val()||{};
+      refreshUI();
+    });
+    DB_REF.child('subjects').on('value', snap=>{
+      LIVE.subjects = snap.val()||{};
+      refreshUI();
+    });
+    DB_REF.child('results').on('value', snap=>{
+      LIVE.results = snap.val()||{};
+      refreshUI();
+    });
+    DB_REF.child('settings').on('value', snap=>{
+      LIVE.settings = snap.val()||{};
+    });
+    document.getElementById('sync-badge').textContent='🟢 Live Sync ON';
+    document.getElementById('sync-badge').className='sync-indicator';
+    document.getElementById('firebase-setup-box').style.display='none';
+    toast('Connected to Firebase! Data syncing in real time ✅');
+  } catch(e){
+    document.getElementById('sync-badge').textContent='🔴 Sync Failed';
+    document.getElementById('sync-badge').className='sync-indicator offline';
+    toast('Firebase connection failed: '+e.message, false);
+  }
+}
+
+function refreshUI(){
+  const sec=document.querySelector('section.active');
+  if(!sec) return;
+  const id=sec.id;
+  if(id==='dashboard') renderDashboard();
+  if(id==='hod') renderHodStudents(), renderHodSubjects();
+  if(id==='teacher') loadStudentsForScoring();
+  if(id==='results') searchResults();
+  if(id==='admin') renderAdminStats(), renderAdminResults();
+}
+
+// Helper: convert object to array
+function toArr(obj){ return obj ? Object.entries(obj).map(([k,v])=>({...v,_key:k})) : []; }
+
+// ================================================================
+// LOCAL FALLBACK (if Firebase not set up)
+// ================================================================
+let LOCAL = { students:[], subjects:[], results:[], settings:{name:'Government Technical College, Okitipupa',session:'2024/2025',term:'First Term',principal:''} };
+function saveLocal(){ try{ localStorage.setItem('gtc_local', JSON.stringify(LOCAL)); }catch(e){} }
+function loadLocal(){ try{ const d=localStorage.getItem('gtc_local'); if(d) LOCAL=JSON.parse(d); }catch(e){} }
+loadLocal();
+
+function getStudents(){ return DB_REF ? toArr(LIVE.students) : LOCAL.students; }
+function getSubjects(){ return DB_REF ? toArr(LIVE.subjects) : LOCAL.subjects; }
+function getResults(){ return DB_REF ? toArr(LIVE.results) : LOCAL.results; }
+function getSettings(){ return DB_REF ? (LIVE.settings||LOCAL.settings) : LOCAL.settings; }
+
+// ================================================================
+// CREDENTIALS
+// ================================================================
+let CURRENT = {role:'', name:'', dept:''};
+function loadCreds(){ try{ const c=localStorage.getItem('gtc_creds'); if(c) return JSON.parse(c); }catch(e){} return {admin:{pass:'admin123'},teacher:{pass:'teacher123'}}; }
+let CREDS = loadCreds();
+
+let loginRole='admin';
+function setRole(r,btn){
+  loginRole=r;
+  document.querySelectorAll('.role-tab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  // Student mode
+  document.getElementById('student-dept-group').style.display=r==='student'?'block':'none';
+  document.getElementById('student-name-group').style.display=r==='student'?'block':'none';
+  document.getElementById('login-user').parentElement.style.display=r==='student'?'none':'flex';
+  document.getElementById('pass-group').style.display=(r==='student'||r==='viewer')?'none':'block';
+  document.getElementById('dept-group').style.display=(r==='hod'||r==='teacher')?'block':'none';
+  document.getElementById('login-hint').style.display=r==='student'?'none':'block';
+}
+
+function populateLoginDept(){
+  const sel=document.getElementById('login-dept');
+  sel.innerHTML=DEPARTMENTS.map(d=>`<option value="${d.id}">${d.icon} ${d.name}</option>`).join('');
+  const ssel=document.getElementById('student-dept');
+  ssel.innerHTML=DEPARTMENTS.filter(d=>d.id!=='GED').map(d=>`<option value="${d.id}">${d.icon} ${d.name}</option>`).join('');
+  const gedSel=document.getElementById('t-ged-dept');
+  if(gedSel) gedSel.innerHTML='<option value="">-- Select Department --</option>'+DEPARTMENTS.filter(d=>d.id!=='GED').map(d=>`<option value="${d.id}">${d.icon} ${d.name}</option>`).join('');
+}
+populateLoginDept();
+populateBsDeptFilter();
+
+function doLogin(){
+  const user=document.getElementById('login-user').value.trim();
+  const pass=document.getElementById('login-pass').value;
+  const dept=document.getElementById('login-dept').value;
+  // Student login
+  if(loginRole==='student'){
+    const stdept=document.getElementById('student-dept').value;
+    const stname=document.getElementById('student-name').value.trim().toUpperCase();
+    if(!stname){ toast('Enter your full name',false); return; }
+    // Find student in database
+    const students=getStudents();
+    const found=students.find(s=>s.dept===stdept && s.name.toUpperCase()===stname);
+    if(!found){ toast('Student not found. Check your name and department.',false); return; }
+    CURRENT={role:'student',name:found.name,dept:stdept,reg:found.reg};
+    afterStudentLogin(found.reg);
+    return;
+  }
+  if(loginRole==='viewer'){ CURRENT={role:'viewer',name:'Guest',dept:''}; afterLogin(); return; }
+  if(loginRole==='hod'){
+    const deptObj=DEPARTMENTS.find(d=>d.id===dept);
+    if(!deptObj){ toast('Select your department',false); return; }
+    const savedPass=CREDS['hod_'+dept];
+    const expectedPass=savedPass||deptObj.hodPass;
+    if(pass!==expectedPass){ toast('Wrong password for this department',false); return; }
+    CURRENT={role:'hod',name:user||'HOD',dept};
+    afterLogin(); return;
+  }
+  if(!CREDS[loginRole]){ toast('Invalid role',false); return; }
+  if(pass!==CREDS[loginRole].pass){ toast('Wrong password',false); return; }
+  CURRENT={role:loginRole,name:user||loginRole.toUpperCase(),dept:loginRole==='teacher'?dept:''};
+  afterLogin();
+}
+
+function afterLogin(){
+  document.getElementById('main-nav').style.display='flex';
+  document.getElementById('user-badge').style.display='flex';
+  document.getElementById('logout-btn').style.display='inline-flex';
+  document.getElementById('user-label').textContent=CURRENT.name+(CURRENT.dept?' — '+getDeptName(CURRENT.dept):'');
+  document.getElementById('nav-hod').style.display=CURRENT.role==='hod'?'inline-flex':'none';
+  document.getElementById('nav-teacher').style.display=(CURRENT.role==='teacher'||CURRENT.role==='admin')?'inline-flex':'none';
+  document.getElementById('nav-admin').style.display=CURRENT.role==='admin'?'inline-flex':'none';
+  showSection('dashboard',document.querySelector('.nav-btn'));
+}
+
+function afterStudentLogin(reg){
+  // Hide ALL navigation — student sees ONLY their result
+  document.getElementById('main-nav').style.display='none';
+  document.getElementById('user-badge').style.display='flex';
+  document.getElementById('logout-btn').style.display='inline-flex';
+  document.getElementById('user-label').textContent='🎓 '+CURRENT.name;
+  // Hide all sections
+  document.querySelectorAll('section').forEach(s=>s.classList.remove('active'));
+  // Show a dedicated student result section
+  document.getElementById('student-result-view').style.display='block';
+  // Load result
+  setTimeout(()=>{ loadMyResult(reg); }, 600);
+}
+
+function loadMyResult(reg){
+  const student=getStudents().find(s=>s.reg===reg);
+  if(!student){ toast('Could not load your result',false); return; }
+  const records=getResults().filter(r=>r.studentReg===reg);
+  if(!records.length){
+    document.getElementById('my-result-content').innerHTML=`
+      <div style="text-align:center;padding:3rem;color:#555;">
+        <div style="font-size:3rem;margin-bottom:1rem;">📭</div>
+        <h3 style="font-family:'Playfair Display',serif;color:#0a0f2c;">No Results Yet</h3>
+        <p style="color:#888;margin-top:0.5rem;">Your results have not been entered yet.<br/>Please check back later.</p>
+      </div>`;
+    return;
+  }
+  const settings=getSettings();
+  const tradeRecs=records.filter(r=>!r.isGed);
+  const gedRecs=records.filter(r=>r.isGed);
+  const allRecs=[...tradeRecs,...gedRecs];
+  const totalUnits=allRecs.reduce((s,r)=>s+r.units,0);
+  const totalWGP=allRecs.reduce((s,r)=>s+(calcGP(r.grade)*r.units),0);
+  const gpa=totalUnits?(totalWGP/totalUnits).toFixed(2):'0.00';
+  const avg=allRecs.length?Math.round(allRecs.reduce((s,r)=>s+r.total,0)/allRecs.length):0;
+  const makeRows=recs=>recs.map(r=>`<tr>
+    <td>${r.subjectCode}</td><td>${r.subjectTitle}</td><td>${r.units}</td>
+    <td>${r.t1??'-'}</td><td>${r.t2??'-'}</td><td>${r.t3??'-'}</td><td>${r.ca}</td><td>${r.exam}</td><td><strong>${r.total}</strong></td>
+    <td><strong>${r.grade}</strong></td><td>${calcGP(r.grade)}</td><td>${calcGP(r.grade)*r.units}</td>
+  </tr>`).join('');
+  const tradeSection=tradeRecs.length?`<tr><td colspan="12" style="background:#eef2ff;font-weight:700;font-size:0.76rem;padding:0.4rem 0.75rem;color:#3730a3;">TRADE SUBJECTS</td></tr>${makeRows(tradeRecs)}`:'';
+  const gedSection=gedRecs.length?`<tr><td colspan="12" style="background:#fef9e7;font-weight:700;font-size:0.76rem;padding:0.4rem 0.75rem;color:#7d6608;">GENERAL EDUCATION SUBJECTS</td></tr>${makeRows(gedRecs)}`:''
+  document.getElementById('my-result-content').innerHTML=`
+    <div class="rs-header">
+      <h2>${settings.name||'Government Technical College, Okitipupa'}</h2>
+      <p>Department of ${getDeptName(student.dept)}</p>
+      <p style="font-size:0.76rem;color:#888;margin-top:0.2rem">${settings.session||'2024/2025'} — ${settings.term||'First Term'}</p>
+    </div>
+    <dl class="rs-meta">
+      <dt>Student Name</dt><dd>${student.name}</dd>
+      <dt>Reg. Number</dt><dd>${student.reg}</dd>
+      <dt>Department</dt><dd>${getDeptName(student.dept)}</dd>
+      <dt>Level</dt><dd>${student.level}</dd>
+      <dt>Gender</dt><dd>${student.gender}</dd>
+      <dt>Session</dt><dd>${settings.session||'2024/2025'} — ${settings.term||'First Term'}</dd>
+    </dl>
+    <table class="rs-tbl">
+      <thead><tr><th>Code</th><th>Subject</th><th>Units</th><th>T1(10)</th><th>T2(10)</th><th>T3(10)</th><th>CA(30)</th><th>Exam(70)</th><th>Total</th><th>Grade</th><th>GP</th><th>WGP</th></tr></thead>
+      <tbody>${tradeSection}${gedSection}</tbody>
+      <tfoot><tr style="background:#f3f4f6;font-weight:700"><td colspan="2">TOTALS</td><td>${totalUnits}</td><td colspan="8"></td><td>${totalWGP}</td></tr></tfoot>
+    </table>
+    <div class="rs-summary">
+      <div class="rs-summary-item"><div class="sv">${avg}%</div><div class="sl">Average</div></div>
+      <div class="rs-summary-item"><div class="sv">${gpa}</div><div class="sl">GPA</div></div>
+      <div class="rs-summary-item"><div class="sv">${totalUnits}</div><div class="sl">Total Units</div></div>
+    </div>
+    <div class="rs-footer">
+      <span>Printed: ${new Date().toLocaleDateString()}</span>
+      <span>${settings.principal?'Principal: '+settings.principal:settings.name||'GTC Okitipupa'}</span>
+    </div>`;
+}
+
+function logout(){
+  CURRENT={role:'',name:'',dept:''};
+  document.getElementById('main-nav').style.display='none';
+  document.getElementById('user-badge').style.display='none';
+  document.getElementById('logout-btn').style.display='none';
+  document.querySelectorAll('section').forEach(s=>s.classList.remove('active'));
+  document.getElementById('login').classList.add('active');
+}
+
+// ================================================================
+// UTILITIES
+// ================================================================
+function populateBsDeptFilter(){
+  const sel=document.getElementById('bs-dept-filter');
+  if(!sel) return;
+  sel.innerHTML='<option value="">All Departments</option>'+DEPARTMENTS.filter(d=>d.id!=='GED').map(d=>`<option value="${d.id}">${d.name}</option>`).join('');
+}
+
+function downloadBroadsheet(){
+  const deptF=document.getElementById('bs-dept-filter').value;
+  const levelF=document.getElementById('bs-level-filter').value;
+  const settings=getSettings();
+  let students=getStudents().filter(s=>s.dept!=='GED');
+  if(deptF) students=students.filter(s=>s.dept===deptF);
+  if(levelF) students=students.filter(s=>s.level===levelF);
+  if(!students.length){ toast('No students found for selected filter',false); return; }
+
+  const allResults=getResults();
+  const allSubjects=getSubjects();
+
+  // Collect all unique subjects for columns
+  const subjectCodes=[...new Set(allResults.filter(r=>{
+    const st=students.find(s=>s.reg===r.studentReg);
+    return !!st;
+  }).map(r=>r.subjectCode))].sort();
+
+  // Build header row
+  const headers=['REG. NO.','FULL NAME','DEPARTMENT','LEVEL','GENDER',...subjectCodes.flatMap(c=>[c+'-T1',c+'-T2',c+'-T3',c+'-CA',c+'-EXAM',c+'-TOTAL']),'AVERAGE','GPA','REMARK'];
+  const rows=[headers];
+
+  students.sort((a,b)=>a.name.localeCompare(b.name)).forEach(st=>{
+    const stRecs=allResults.filter(r=>r.studentReg===st.reg);
+    const scores=subjectCodes.flatMap(code=>{
+      const rec=stRecs.find(r=>r.subjectCode===code);
+      return rec?[rec.t1??'',rec.t2??'',rec.t3??'',rec.ca,rec.exam,rec.total]:['','','','','',''];
+    });
+    const filled=stRecs.filter(r=>r.total!==undefined);
+    const avg=filled.length?Math.round(filled.reduce((s,r)=>s+r.total,0)/filled.length):0;
+    const totalUnits=filled.reduce((s,r)=>s+r.units,0);
+    const totalWGP=filled.reduce((s,r)=>s+(calcGP(r.grade)*r.units),0);
+    const gpa=totalUnits?(totalWGP/totalUnits).toFixed(2):'0.00';
+    const remark=parseFloat(gpa)>=3.5?'Distinction':parseFloat(gpa)>=2.5?'Merit':parseFloat(gpa)>=1.5?'Pass':'Fail';
+    rows.push([st.reg,st.name,getDeptName(st.dept),st.level,st.gender,...scores,avg,gpa,remark]);
+  });
+
+  // Convert to CSV
+  const csv=rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const label=`${settings.name||'GTC Okitipupa'} - ${settings.session||'2024/2025'} ${settings.term||'First Term'}`;
+  const titleRow=`"${label}"`;
+  const finalCsv=titleRow+'\n\n'+csv;
+
+  const blob=new Blob([finalCsv],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;
+  const fname=`GTC_Broadsheet_${(deptF||'All').replace(/\s/g,'_')}_${(levelF||'All').replace(/\s/g,'_')}.csv`;
+  a.download=fname;
+  a.click();
+  URL.revokeObjectURL(url);
+  toast('Broadsheet downloaded! Open with Excel or Google Sheets ✅');
+}
+
+function toast(msg,ok=true){
+  const t=document.getElementById('toast');
+  t.textContent=(ok?'✓ ':'⚠ ')+msg;
+  t.style.background=ok?'#16a34a':'#dc2626';
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),3500);
+}
+function calcGrade(t){ if(t>=70)return'A'; if(t>=60)return'B'; if(t>=50)return'C'; if(t>=45)return'D'; return'F'; }
+function calcGP(g){ return{A:5,B:4,C:3,D:2,F:0}[g]||0; }
+function getDeptName(id){ return DEPARTMENTS.find(d=>d.id===id)?.name||id; }
+function getDeptIcon(id){ return DEPARTMENTS.find(d=>d.id===id)?.icon||'📁'; }
+function uid(){ return Date.now().toString(36)+Math.random().toString(36).substr(2,9)+Math.random().toString(36).substr(2,4); }
+
+function showSection(id,btn){
+  document.querySelectorAll('section').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  if(id==='dashboard') renderDashboard();
+  if(id==='hod') renderHOD();
+  if(id==='teacher') renderTeacherDepts();
+  if(id==='results'){ populateResultFilters(); searchResults(); }
+  if(id==='admin'){ renderAdminStats(); renderAdminResults(); populateAdminFilters(); renderHodPwGrid(); }
+}
+
+// ================================================================
+// DASHBOARD
+// ================================================================
+function renderDashboard(){
+  const students=getStudents(); const results=getResults(); const subjects=getSubjects();
+  document.getElementById('ds-students').textContent=students.length;
+  document.getElementById('ds-results').textContent=results.length;
+  document.getElementById('ds-subjects').textContent=subjects.length;
+  const grid=document.getElementById('dept-grid');
+  grid.innerHTML=DEPARTMENTS.map(d=>{
+    const sc=students.filter(s=>s.dept===d.id).length;
+    const rc=results.filter(r=>r.dept===d.id).length;
+    return `<div class="dept-card" onclick="openDept('${d.id}')">
+      <div class="di">${d.icon}</div><h3>${d.name}</h3>
+      <p>${sc} student(s) · ${rc} result(s)</p>
+    </div>`;
+  }).join('');
+}
+
+function openDept(deptId){
+  if(CURRENT.role==='hod'&&CURRENT.dept!==deptId){ toast('You can only manage your own department',false); return; }
+  if(CURRENT.role==='admin') CURRENT.dept=deptId;
+  const btn=document.getElementById('nav-hod');
+  if(CURRENT.role==='admin') btn.style.display='inline-flex';
+  showSection('hod',btn);
+}
+
+// ================================================================
+// HOD
+// ================================================================
+function renderHOD(){
+  document.getElementById('hod-dept-label').textContent='Department: '+getDeptName(CURRENT.dept);
+  renderHodStudents(); renderHodSubjects();
+}
+
+function addStudent(){
+  const reg=document.getElementById('h-reg').value.trim();
+  const name=document.getElementById('h-name').value.trim();
+  const level=document.getElementById('h-level').value;
+  const gender=document.getElementById('h-gender').value;
+  if(!reg||!name){ toast('Fill all fields',false); return; }
+  const existing=getStudents().find(s=>s.reg===reg);
+  if(existing){ toast('Reg. number already exists',false); return; }
+  const student={id:uid(),reg,name,dept:CURRENT.dept,level,gender};
+  if(DB_REF){
+    DB_REF.child('students').child(student.id).set(student);
+  } else {
+    LOCAL.students.push(student); saveLocal();
+  }
+  toast('Student added!');
+  document.getElementById('h-reg').value='';
+  document.getElementById('h-name').value='';
+  renderHodStudents();
+}
+
+function addSubject(){
+  const code=document.getElementById('h-scode').value.trim();
+  const title=document.getElementById('h-stitle').value.trim();
+  const level=document.getElementById('h-slevel').value;
+  const units=parseInt(document.getElementById('h-sunits').value)||3;
+  if(!code||!title){ toast('Fill all fields',false); return; }
+  const existing=getSubjects().find(s=>s.code===code&&s.dept===CURRENT.dept);
+  if(existing){ toast('Subject already exists',false); return; }
+  const subject={id:uid(),code,title,dept:CURRENT.dept,level,units};
+  if(DB_REF){
+    DB_REF.child('subjects').child(subject.id).set(subject);
+  } else {
+    LOCAL.subjects.push(subject); saveLocal();
+  }
+  toast('Subject added!');
+  document.getElementById('h-scode').value='';
+  document.getElementById('h-stitle').value='';
+  renderHodSubjects();
+}
+
+function removeStudent(id){
+  if(!confirm('Remove student?'))return;
+  if(DB_REF){ DB_REF.child('students').child(id).remove(); }
+  else { LOCAL.students=LOCAL.students.filter(s=>s.id!==id); saveLocal(); renderHodStudents(); }
+  toast('Removed');
+}
+
+function removeSubject(id){
+  if(!confirm('Remove subject?'))return;
+  if(DB_REF){ DB_REF.child('subjects').child(id).remove(); }
+  else { LOCAL.subjects=LOCAL.subjects.filter(s=>s.id!==id); saveLocal(); renderHodSubjects(); }
+  toast('Removed');
+}
+
+function renderHodStudents(){
+  const q=(document.getElementById('hod-search')?.value||'').toLowerCase();
+  const lf=document.getElementById('hod-level-filter')?.value||'';
+  let list=getStudents().filter(s=>s.dept===CURRENT.dept);
+  if(q) list=list.filter(s=>s.name.toLowerCase().includes(q)||s.reg.toLowerCase().includes(q));
+  if(lf) list=list.filter(s=>s.level===lf);
+  const tbody=document.getElementById('hod-students-body');
+  if(!tbody)return;
+  if(!list.length){ tbody.innerHTML=`<tr><td colspan="5"><div class="empty"><div class="ei">👥</div><p>No students yet.</p></div></td></tr>`; return; }
+  tbody.innerHTML=list.map(s=>`<tr>
+    <td><span style="font-family:'DM Mono',monospace;color:var(--gold)">${s.reg}</span></td>
+    <td>${s.name}</td><td>${s.level}</td><td>${s.gender}</td>
+    <td><button class="btn btn-danger btn-sm" onclick="removeStudent('${s._key||s.id}')">✕</button></td>
+  </tr>`).join('');
+}
+
+function renderHodSubjects(){
+  const list=getSubjects().filter(s=>s.dept===CURRENT.dept);
+  const tbody=document.getElementById('hod-subjects-body');
+  if(!tbody)return;
+  if(!list.length){ tbody.innerHTML=`<tr><td colspan="5"><div class="empty"><div class="ei">📚</div><p>No subjects yet.</p></div></td></tr>`; return; }
+  tbody.innerHTML=list.map(s=>`<tr>
+    <td><span style="font-family:'DM Mono',monospace;color:var(--gold)">${s.code}</span></td>
+    <td>${s.title}</td><td>${s.level}</td><td>${s.units}</td>
+    <td><button class="btn btn-danger btn-sm" onclick="removeSubject('${s._key||s.id}')">✕</button></td>
+  </tr>`).join('');
+}
+
+// ================================================================
+// TEACHER
+// ================================================================
+function renderTeacherDepts(){
+  const sel=document.getElementById('t-dept');
+  sel.innerHTML='<option value="">-- Select Department --</option>';
+  DEPARTMENTS.forEach(d=>{
+    if(CURRENT.role==='teacher'&&CURRENT.dept&&CURRENT.dept!==d.id)return;
+    const o=document.createElement('option');
+    o.value=d.id; o.textContent=d.icon+' '+d.name; sel.appendChild(o);
+  });
+  if(CURRENT.role==='teacher'&&CURRENT.dept){ sel.value=CURRENT.dept; loadTeacherSubjects(); }
+}
+
+function loadTeacherSubjects(){
+  const dept=document.getElementById('t-dept').value;
+  const sel=document.getElementById('t-subject');
+  sel.innerHTML='<option value="">-- Select Subject --</option>';
+  if(!dept)return;
+  if(dept==='GED'){
+    // GED dept: show only GED subjects, teacher will pick a department to apply scores to
+    const gedGrp=document.createElement('optgroup'); gedGrp.label='--- General Education Subjects ---';
+    GED_SUBJECTS.forEach(s=>{ const o=document.createElement('option'); o.value=s.code; o.textContent=`${s.code} — ${s.title}`; gedGrp.appendChild(o); });
+    sel.appendChild(gedGrp);
+    // Show a target department selector for GED teachers
+    document.getElementById('ged-target-dept-row').style.display='block';
+  } else {
+    document.getElementById('ged-target-dept-row').style.display='none';
+    const deptSubs=getSubjects().filter(s=>s.dept===dept);
+    if(deptSubs.length){
+      const grp=document.createElement('optgroup'); grp.label='--- Trade Subjects ---';
+      deptSubs.forEach(s=>{ const o=document.createElement('option'); o.value=s.code; o.textContent=`${s.code} — ${s.title}`; grp.appendChild(o); });
+      sel.appendChild(grp);
+    }
+    const gedGrp=document.createElement('optgroup'); gedGrp.label='--- General Education (All Students) ---';
+    GED_SUBJECTS.forEach(s=>{ const o=document.createElement('option'); o.value=s.code; o.textContent=`${s.code} — ${s.title}`; gedGrp.appendChild(o); });
+    sel.appendChild(gedGrp);
+  }
+  document.getElementById('t-score-panel').style.display='none';
+}
+
+function loadStudentsForScoring(){
+  const dept=document.getElementById('t-dept').value;
+  const subCode=document.getElementById('t-subject').value;
+  const level=document.getElementById('t-level').value;
+  const gedTargetDept=document.getElementById('t-ged-dept')?.value||'';
+  if(!dept||!subCode){ document.getElementById('t-score-panel').style.display='none'; return; }
+  const gedSub=GED_SUBJECTS.find(s=>s.code===subCode);
+  const deptSub=getSubjects().find(s=>s.code===subCode&&s.dept===dept);
+  const sub=gedSub?{...gedSub,dept:'GED',isGed:true}:deptSub;
+  if(!sub)return;
+  // For GED dept, require target department to be selected
+  if(dept==='GED'&&!gedTargetDept){ document.getElementById('t-score-panel').style.display='none'; return; }
+  const targetDept=dept==='GED'?gedTargetDept:dept;
+  document.getElementById('t-subject-label').textContent=`${sub.code} — ${sub.title}${sub.isGed?' (General Education)':''}`;
+  let students=getStudents().filter(s=>s.dept===targetDept);
+  if(level) students=students.filter(s=>s.level===level);
+  else if(!sub.isGed&&sub.level) students=students.filter(s=>s.level===sub.level);
+  const results=getResults();
+  const tbody=document.getElementById('t-score-body');
+  if(!students.length){ tbody.innerHTML=`<tr><td colspan="9"><div class="empty"><div class="ei">👥</div><p>No students found. Ask HOD to add students first.</p></div></td></tr>`; document.getElementById('t-score-panel').style.display='block'; return; }
+  tbody.innerHTML=students.map((s,i)=>{
+    const ex=results.find(r=>r.studentReg===s.reg&&r.subjectCode===subCode);
+    const t1=ex?ex.t1:''; const t2=ex?ex.t2:''; const t3=ex?ex.t3:''; const exam=ex?ex.exam:'';
+    return `<tr id="trow-${i}">
+      <td><span style="font-family:'DM Mono',monospace">${s.reg}</span></td>
+      <td>${s.name}</td><td>${s.level}</td>
+      <td><input type="number" min="0" max="10" placeholder="0-10" value="${t1}" id="tt1-${i}" oninput="calcTRow(${i})"/></td>
+      <td><input type="number" min="0" max="10" placeholder="0-10" value="${t2}" id="tt2-${i}" oninput="calcTRow(${i})"/></td>
+      <td><input type="number" min="0" max="10" placeholder="0-10" value="${t3}" id="tt3-${i}" oninput="calcTRow(${i})"/></td>
+      <td><input type="number" min="0" max="70" placeholder="0-70" value="${exam}" id="tex-${i}" oninput="calcTRow(${i})"/></td>
+      <td id="ttot-${i}" style="font-weight:600">${ex?ex.total:'—'}</td>
+      <td id="tgrd-${i}">${ex?`<span class="badge badge-${ex.grade}">${ex.grade}</span>`:'—'}</td>
+    </tr>`;
+  }).join('');
+  document.getElementById('t-score-panel').style.display='block';
+  window._scoringStudents=students;
+  window._scoringSubject=sub;
+}
+
+function calcTRow(i){
+  const t1=parseFloat(document.getElementById('tt1-'+i)?.value)||0;
+  const t2=parseFloat(document.getElementById('tt2-'+i)?.value)||0;
+  const t3=parseFloat(document.getElementById('tt3-'+i)?.value)||0;
+  const ex=parseFloat(document.getElementById('tex-'+i)?.value)||0;
+  const ca=t1+t2+t3; const tot=ca+ex; const g=calcGrade(tot);
+  document.getElementById('ttot-'+i).textContent=tot;
+  document.getElementById('tgrd-'+i).innerHTML=`<span class="badge badge-${g}">${g}</span>`;
+}
+
+function submitTeacherScores(){
+  const students=window._scoringStudents||[];
+  const sub=window._scoringSubject;
+  const session=document.getElementById('t-session').value;
+  const dept=document.getElementById('t-dept').value;
+  if(!sub||!students.length){ toast('No students loaded',false); return; }
+  let saved=0;
+  const allResults=getResults();
+  const batchUpdate = {};
+  students.forEach((s,i)=>{
+    const t1v=document.getElementById('tt1-'+i)?.value;
+    const t2v=document.getElementById('tt2-'+i)?.value;
+    const t3v=document.getElementById('tt3-'+i)?.value;
+    const exv=document.getElementById('tex-'+i)?.value;
+    // Skip only if ALL fields are empty
+    if((t1v===''||t1v===undefined)&&(t2v===''||t2v===undefined)&&(t3v===''||t3v===undefined)&&(exv===''||exv===undefined))return;
+    // Treat empty fields as 0
+    const t1=parseFloat(t1v)||0;
+    const t2=parseFloat(t2v)||0;
+    const t3=parseFloat(t3v)||0;
+    const ex=parseFloat(exv)||0;
+    const ca=t1+t2+t3; const total=ca+ex; const grade=calcGrade(total);
+    const result={studentReg:s.reg,studentName:s.name,dept,subjectCode:sub.code,subjectTitle:sub.title,level:s.level,units:sub.units,t1,t2,t3,ca,exam:ex,total,grade,teacher:CURRENT.name,session,isGed:sub.isGed||false};
+    if(DB_REF){
+      // Find existing key or generate unique one per student
+      const existing=toArr(LIVE.results).find(r=>r.studentReg===s.reg&&r.subjectCode===sub.code);
+      const key=existing?existing._key:(s.reg+'_'+sub.code).replace(/[^a-zA-Z0-9_]/g,'_');
+      batchUpdate['results/'+key]=result;
+    } else {
+      LOCAL.results=LOCAL.results.filter(r=>!(r.studentReg===s.reg&&r.subjectCode===sub.code));
+      LOCAL.results.push(result); saveLocal();
+    }
+    saved++;
+  });
+  // Save all results in ONE batch update to Firebase
+  if(DB_REF && Object.keys(batchUpdate).length > 0){
+    DB_REF.update(batchUpdate).then(()=>{
+      toast(saved+' score(s) saved successfully!');
+    }).catch(err=>{
+      toast('Error saving: '+err.message, false);
+    });
+  } else {
+    toast(saved+' score(s) saved!');
+  }
+}
+
+// ================================================================
+// RESULTS VIEW
+// ================================================================
+function populateResultFilters(){
+  ['r-dept','a-dept-filter'].forEach(id=>{
+    const sel=document.getElementById(id); if(!sel)return;
+    const cur=sel.value;
+    sel.innerHTML='<option value="">All Departments</option>';
+    DEPARTMENTS.forEach(d=>{ const o=document.createElement('option'); o.value=d.id; o.textContent=d.icon+' '+d.name; sel.appendChild(o); });
+    sel.value=cur;
+  });
+}
+
+function searchResults(){
+  const dept=document.getElementById('r-dept')?.value||'';
+  const level=document.getElementById('r-level')?.value||'';
+  const q=(document.getElementById('r-search')?.value||'').toLowerCase().trim();
+  document.getElementById('r-sheet-wrap').style.display='none';
+  let students=getStudents();
+  if(dept) students=students.filter(s=>s.dept===dept);
+  if(level) students=students.filter(s=>s.level===level);
+  if(q) students=students.filter(s=>s.name.toLowerCase().includes(q)||s.reg.toLowerCase().includes(q));
+  const listEl=document.getElementById('r-list');
+  if(!students.length){ listEl.innerHTML='<div class="empty"><div class="ei">🔍</div><p>No students found. Try a different search.</p></div>'; return; }
+  const results=getResults();
+  listEl.innerHTML=`<div class="wrap"><table class="tbl"><thead><tr><th>Reg. No.</th><th>Name</th><th>Department</th><th>Level</th><th>Results</th><th></th></tr></thead>
+  <tbody>${students.map(s=>{
+    const rc=results.filter(r=>r.studentReg===s.reg).length;
+    return `<tr>
+      <td><span style="font-family:'DM Mono',monospace;color:var(--gold)">${s.reg}</span></td>
+      <td>${s.name}</td>
+      <td>${getDeptIcon(s.dept)} ${getDeptName(s.dept)}</td>
+      <td>${s.level}</td>
+      <td><span class="badge" style="background:rgba(201,168,76,0.15);color:var(--gold-light)">${rc} subject(s)</span></td>
+      <td><button class="btn btn-primary btn-sm" onclick="viewStudentResult('${s.reg}')">📄 View</button></td>
+    </tr>`;
+  }).join('')}</tbody></table></div>`;
+}
+
+function viewStudentResult(reg){
+  const student=getStudents().find(s=>s.reg===reg);
+  if(!student)return;
+  const records=getResults().filter(r=>r.studentReg===reg);
+  if(!records.length){ toast('No results found for this student yet',false); return; }
+  const settings=getSettings();
+  const tradeRecs=records.filter(r=>!r.isGed);
+  const gedRecs=records.filter(r=>r.isGed);
+  const allRecs=[...tradeRecs,...gedRecs];
+  const totalUnits=allRecs.reduce((s,r)=>s+r.units,0);
+  const totalWGP=allRecs.reduce((s,r)=>s+(calcGP(r.grade)*r.units),0);
+  const gpa=totalUnits?(totalWGP/totalUnits).toFixed(2):'0.00';
+  const avg=allRecs.length?Math.round(allRecs.reduce((s,r)=>s+r.total,0)/allRecs.length):0;
+  const makeRows=recs=>recs.map(r=>`<tr>
+    <td>${r.subjectCode}</td><td>${r.subjectTitle}</td><td>${r.units}</td>
+    <td>${r.t1??'-'}</td><td>${r.t2??'-'}</td><td>${r.t3??'-'}</td><td>${r.ca}</td><td>${r.exam}</td><td><strong>${r.total}</strong></td>
+    <td><strong>${r.grade}</strong></td><td>${calcGP(r.grade)}</td><td>${calcGP(r.grade)*r.units}</td>
+  </tr>`).join('');
+  const tradeSection=tradeRecs.length?`<tr><td colspan="12" style="background:#eef2ff;font-weight:700;font-size:0.76rem;padding:0.4rem 0.75rem;color:#3730a3;">TRADE SUBJECTS</td></tr>${makeRows(tradeRecs)}`:'';
+  const gedSection=gedRecs.length?`<tr><td colspan="12" style="background:#fef9e7;font-weight:700;font-size:0.76rem;padding:0.4rem 0.75rem;color:#7d6608;">GENERAL EDUCATION SUBJECTS</td></tr>${makeRows(gedRecs)}`:''
+  document.getElementById('r-sheet-content').innerHTML=`
+    <div class="rs-header">
+      <h2>${settings.name||'Government Technical College, Okitipupa'}</h2>
+      <p>Department of ${getDeptName(student.dept)}</p>
+      <p style="font-size:0.76rem;color:#888;margin-top:0.2rem">${settings.session||'2024/2025'} — ${settings.term||'First Term'}</p>
+    </div>
+    <dl class="rs-meta">
+      <dt>Student Name</dt><dd>${student.name}</dd>
+      <dt>Reg. Number</dt><dd>${student.reg}</dd>
+      <dt>Department</dt><dd>${getDeptName(student.dept)}</dd>
+      <dt>Level</dt><dd>${student.level}</dd>
+      <dt>Gender</dt><dd>${student.gender}</dd>
+      <dt>Session</dt><dd>${settings.session||'2024/2025'} — ${settings.term||'First Term'}</dd>
+    </dl>
+    <table class="rs-tbl">
+      <thead><tr><th>Code</th><th>Subject</th><th>Units</th><th>T1(10)</th><th>T2(10)</th><th>T3(10)</th><th>CA(30)</th><th>Exam(70)</th><th>Total</th><th>Grade</th><th>GP</th><th>WGP</th></tr></thead>
+      <tbody>${tradeSection}${gedSection}</tbody>
+      <tfoot><tr style="background:#f3f4f6;font-weight:700"><td colspan="2">TOTALS</td><td>${totalUnits}</td><td colspan="8"></td><td>${totalWGP}</td></tr></tfoot>
+    </table>
+    <div class="rs-summary">
+      <div class="rs-summary-item"><div class="sv">${avg}%</div><div class="sl">Average</div></div>
+      <div class="rs-summary-item"><div class="sv">${gpa}</div><div class="sl">GPA</div></div>
+      <div class="rs-summary-item"><div class="sv">${totalUnits}</div><div class="sl">Total Units</div></div>
+    </div>
+    <div class="rs-footer">
+      <span>Printed: ${new Date().toLocaleDateString()}</span>
+      <span>${settings.principal?'Principal: '+settings.principal:settings.name||'GTC Okitipupa'}</span>
+    </div>`;
+  document.getElementById('r-sheet-wrap').style.display='block';
+  document.getElementById('r-sheet-wrap').scrollIntoView({behavior:'smooth'});
+}
+
+function printSheet(){
+  const sheetContent = document.getElementById('r-sheet-content');
+  if(!sheetContent){ alert('No result to print!'); return; }
+  
+  const printWindow = window.open('', '_blank');
+  printWindow.document.write(`<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Result Sheet - GTC Okitipupa</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family: Arial, sans-serif; background:#fff; color:#000; padding:20px; }
+  .result-sheet { max-width:700px; margin:0 auto; background:#fff; padding:20px; }
+  .sheet-header { text-align:center; margin-bottom:20px; border-bottom:2px solid #000; padding-bottom:15px; }
+  .sheet-header h2 { font-size:1.4rem; font-weight:900; color:#000; margin-bottom:4px; }
+  .sheet-header p { font-size:0.85rem; color:#333; margin-bottom:2px; }
+  .student-info { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:20px; padding:12px; border:1px solid #ccc; border-radius:6px; }
+  .info-row { display:flex; flex-direction:column; }
+  .info-label { font-size:0.7rem; color:#666; text-transform:uppercase; font-weight:700; }
+  .info-value { font-size:0.88rem; font-weight:700; color:#000; }
+  table { width:100%; border-collapse:collapse; margin-bottom:16px; font-size:0.82rem; }
+  th { background:#1c3a2a; color:#fff; padding:8px 6px; text-align:left; font-size:0.72rem; }
+  td { padding:7px 6px; border-bottom:1px solid #eee; color:#000; }
+  tr:nth-child(even) td { background:#f9f9f9; }
+  .section-header td { background:#e8f4ec; font-weight:800; color:#1c3a2a; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.05em; }
+  .totals-row td { background:#1c3a2a; color:#fff; font-weight:800; }
+  .grade-A { color:#16a34a; font-weight:800; }
+  .grade-B { color:#2563eb; font-weight:800; }
+  .grade-C { color:#d97706; font-weight:800; }
+  .grade-D { color:#ea580c; font-weight:800; }
+  .grade-F { color:#dc2626; font-weight:800; }
+  .summary-box { display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:16px; }
+  .summary-item { border:1px solid #ccc; border-radius:6px; padding:10px; text-align:center; }
+  .summary-label { font-size:0.68rem; color:#666; text-transform:uppercase; font-weight:700; }
+  .summary-value { font-size:1.1rem; font-weight:900; color:#1c3a2a; margin-top:2px; }
+  .signature-section { display:grid; grid-template-columns:1fr 1fr; gap:30px; margin-top:30px; }
+  .sign-line { border-top:1px solid #000; padding-top:6px; font-size:0.72rem; color:#666; margin-top:40px; }
+  .footer-note { text-align:center; font-size:0.7rem; color:#888; margin-top:20px; border-top:1px solid #eee; padding-top:10px; }
+  @media print { body { padding:10px; } }
+</style>
+</head>
+<body>
+<div class="result-sheet">
+${sheetContent.innerHTML}
+</div>
+</body>
+</html>`);
+  printWindow.document.close();
+  printWindow.focus();
+  setTimeout(function(){ printWindow.print(); }, 800);
+}
+
+// ================================================================
+// ADMIN
+// ================================================================
+function saveAdminSettings(){
+  const settings={name:document.getElementById('a-name').value,session:document.getElementById('a-session').value,term:document.getElementById('a-term').value,principal:document.getElementById('a-principal').value};
+  if(DB_REF){ DB_REF.child('settings').set(settings); }
+  else { LOCAL.settings=settings; saveLocal(); }
+  toast('Settings saved!');
+}
+
+function renderAdminStats(){
+  const students=getStudents(); const results=getResults(); const subjects=getSubjects();
+  document.getElementById('a-stat-s').textContent=students.length;
+  document.getElementById('a-stat-r').textContent=results.length;
+  document.getElementById('a-stat-sub').textContent=subjects.length;
+  const avg=results.length?Math.round(results.reduce((s,r)=>s+r.total,0)/results.length):null;
+  document.getElementById('a-stat-avg').textContent=avg!==null?avg+'%':'—';
+  renderHodPwGrid();
+}
+
+function renderAdminResults(){
+  const q=(document.getElementById('a-search')?.value||'').toLowerCase();
+  const df=document.getElementById('a-dept-filter')?.value||'';
+  let rows=getResults();
+  if(q) rows=rows.filter(r=>r.studentReg.toLowerCase().includes(q)||r.studentName.toLowerCase().includes(q)||r.subjectCode.toLowerCase().includes(q));
+  if(df) rows=rows.filter(r=>r.dept===df);
+  const tbody=document.getElementById('a-results-body');
+  if(!rows.length){ tbody.innerHTML=`<tr><td colspan="13"><div class="empty"><div class="ei">📭</div><p>No results yet.</p></div></td></tr>`; return; }
+  tbody.innerHTML=rows.map((r,i)=>`<tr>
+    <td><span style="font-family:'DM Mono',monospace">${r.studentReg}</span></td>
+    <td>${r.studentName}</td>
+    <td style="font-size:0.78rem">${getDeptIcon(r.dept)} ${getDeptName(r.dept)}</td>
+    <td>${r.subjectCode}</td><td>${r.level}</td>
+    <td>${r.t1??'-'}</td><td>${r.t2??'-'}</td><td>${r.t3??'-'}</td>
+    <td>${r.ca}</td><td>${r.exam}</td>
+    <td><strong>${r.total}</strong></td>
+    <td><span class="badge badge-${r.grade}">${r.grade}</span></td>
+    <td><button class="btn btn-danger btn-sm" onclick="delResult('${r._key||i}')">✕</button></td>
+  </tr>`).join('');
+}
+
+function delResult(key){
+  if(!confirm('Delete?'))return;
+  if(DB_REF){ DB_REF.child('results').child(key).remove(); }
+  else { LOCAL.results.splice(key,1); saveLocal(); renderAdminResults(); renderAdminStats(); }
+  toast('Deleted');
+}
+
+function populateAdminFilters(){ populateResultFilters(); }
+
+function renderHodPwGrid(){
+  const grid=document.getElementById('hod-pw-grid'); if(!grid)return;
+  grid.innerHTML=DEPARTMENTS.filter(d=>d.id!=='GED').map(d=>`
+    <div class="form-group">
+      <label>${d.icon} ${d.name.split(' ').slice(0,3).join(' ')}</label>
+      <input type="password" id="hod-pw-${d.id}" placeholder="Default: ${d.hodPass}"/>
+    </div>`).join('');
+}
+
+function changePasswords(){
+  const a=document.getElementById('pw-admin').value.trim();
+  const a2=document.getElementById('pw-admin2').value.trim();
+  const t=document.getElementById('pw-teacher').value.trim();
+  if(a&&a!==a2){ toast('Admin passwords do not match',false); return; }
+  if(a) CREDS.admin.pass=a;
+  if(t) CREDS.teacher.pass=t;
+  DEPARTMENTS.filter(d=>d.id!=='GED').forEach(d=>{
+    const el=document.getElementById('hod-pw-'+d.id);
+    if(el&&el.value.trim()) CREDS['hod_'+d.id]=el.value.trim();
+  });
+  localStorage.setItem('gtc_creds',JSON.stringify(CREDS));
+  toast('Passwords updated!');
+  document.getElementById('pw-admin').value='';
+  document.getElementById('pw-admin2').value='';
+  document.getElementById('pw-teacher').value='';
+  DEPARTMENTS.forEach(d=>{ const el=document.getElementById('hod-pw-'+d.id); if(el) el.value=''; });
+}
+
+// ================================================================
+// IMPORT / EXPORT
+// ================================================================
+function exportData(){
+  const data={ students: getStudents(), subjects: getSubjects(), results: getResults() };
+  const json=JSON.stringify(data,null,2);
+  const blob=new Blob([json],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='gtc_data_export.json';
+  a.click();
+  toast('Data exported! Save the file safely.');
+}
+
+function importData(){
+  const raw=document.getElementById('import-data').value.trim();
+  if(!raw){ toast('Paste exported data first',false); return; }
+  try{
+    const data=JSON.parse(raw);
+    if(!DB_REF){ toast('Connect to Firebase first before importing',false); return; }
+    let sc=0, rc=0, rerc=0;
+    if(data.students) data.students.forEach(s=>{ const k=s.id||uid(); DB_REF.child('students').child(k).set(s); sc++; });
+    if(data.subjects) data.subjects.forEach(s=>{ const k=s.id||uid(); DB_REF.child('subjects').child(k).set(s); rc++; });
+    if(data.results) data.results.forEach(r=>{ const k=uid(); DB_REF.child('results').child(k).set(r); rerc++; });
+    toast(`Imported: ${sc} students, ${rc} subjects, ${rerc} results ✅`);
+    document.getElementById('import-data').value='';
+  } catch(e){ toast('Invalid data format',false); }
+}
+
+// ================================================================
+// INIT
+// ================================================================
+// Firebase config hardcoded
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyAlGrnex8GCd6Ciw_cggrEiA9nhSnEfFMU",
+  authDomain: "gtc-okitipupa.firebaseapp.com",
+  databaseURL: "https://gtc-okitipupa-default-rtdb.firebaseio.com",
+  projectId: "gtc-okitipupa",
+  storageBucket: "gtc-okitipupa.firebasestorage.app",
+  messagingSenderId: "822961195945",
+  appId: "1:822961195945:web:a05839b2d488bec61792b8"
+};
+localStorage.setItem('gtc_fb', JSON.stringify(FIREBASE_CONFIG));
+document.getElementById('firebase-setup-box').style.display='none';
+initFirebase(FIREBASE_CONFIG);
+populateResultFilters();
+</script>
+</body>
+</html>
