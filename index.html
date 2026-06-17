@@ -1164,8 +1164,109 @@ function populateResultFilters(){
     sel.value=cur;
   });
 }
-
 function searchResults(){
+  const dept = document.getElementById('r-dept')?.value || '';
+  const level = document.getElementById('r-level')?.value || '';
+  const q = (document.getElementById('r-search')?.value || '').toLowerCase().trim();
+  
+  document.getElementById('r-sheet-wrap').style.display = 'none';
+  
+  let students = getStudents();
+  
+  if(dept) students = students.filter(s => s.dept === dept);
+  if(level) students = students.filter(s => s.level === level);
+  if(q) students = students.filter(s => s.name.toLowerCase().includes(q) || s.reg.toLowerCase().includes(q));
+  
+  const listEl = document.getElementById('r-list');
+  
+  if(!students.length){ 
+    listEl.innerHTML = '<div class="empty"><div class="ei">🔍</div><p>No students found. Try a different search.</p></div>'; 
+    return; 
+  }
+  
+  const results = getResults();
+  
+  listEl.innerHTML = `<div class="wrap"><table class="tbl"><thead><tr><th>Reg. No.</th><th>Name</th><th>Department</th><th>Level</th><th>Results</th><th></th></tr></thead>
+  <tbody>${students.map(s => {
+    const rc = results.filter(r => r.studentReg === s.reg).length;
+    return `<tr>
+      <td><span style="font-family:'DM Mono',monospace;color:var(--gold)">${s.reg}</span></td>
+      <td>${s.name}</td>
+      <td>${getDeptIcon(s.dept)} ${getDeptName(s.dept)}</td>
+      <td>${s.level}</td>
+      <td><span class="badge" style="background:rgba(201,168,76,0.15);color:var(--gold-light)">${rc} subject(s)</span></td>
+      <td><button class="btn btn-primary btn-sm" onclick="viewStudentResult('${s.reg}')">📄 View</button></td>
+    </tr>`;
+  }).join('')}</tbody></table></div>`;
+}
+
+function viewStudentResult(reg){
+  const student = getStudents().find(s => s.reg === reg);
+  if(!student) {
+    toast('Student not found', false);
+    return;
+  }
+  
+  const settings = getSettings();
+  
+  let allRecords = getResults().filter(r => r.studentReg === reg);
+  
+  if(!allRecords.length){ 
+    toast('No results entered for ' + student.name + ' yet.', false); 
+    return; 
+  }
+  
+  const tradeRecs = allRecords.filter(r => !r.isGed);
+  const gedRecs = allRecords.filter(r => r.isGed);
+  const allRecs = [...tradeRecs, ...gedRecs];
+  
+  const totalUnits = allRecs.reduce((s, r) => s + r.units, 0);
+  const totalWGP = allRecs.reduce((s, r) => s + (calcGP(r.grade) * r.units), 0);
+  const gpa = totalUnits ? (totalWGP / totalUnits).toFixed(2) : '0.00';
+  const avg = allRecs.length ? Math.round(allRecs.reduce((s, r) => s + r.total, 0) / allRecs.length) : 0;
+  
+  const makeRows = recs => recs.map(r => `<tr>
+    <td>${r.subjectCode}</td><td>${r.subjectTitle}</td><td>${r.units}</td>
+    <td>${r.t1 ?? '-'}</td><td>${r.t2 ?? '-'}</td><td>${r.t3 ?? '-'}</td><td>${r.ca}</td><td>${r.exam}</td><td><strong>${r.total}</strong></td>
+    <td><strong>${r.grade}</strong></td><td>${calcGP(r.grade)}</td><td>${calcGP(r.grade) * r.units}</td>
+  </tr>`).join('');
+  
+  const tradeSection = tradeRecs.length ? `<tr><td colspan="12" style="background:#eef2ff;font-weight:700;font-size:0.76rem;padding:0.4rem 0.75rem;color:#3730a3;">TRADE SUBJECTS</td></tr>${makeRows(tradeRecs)}` : '';
+  const gedSection = gedRecs.length ? `<tr><td colspan="12" style="background:#fef9e7;font-weight:700;font-size:0.76rem;padding:0.4rem 0.75rem;color:#7d6608;">GENERAL EDUCATION SUBJECTS</td></tr>${makeRows(gedRecs)}` : '';
+  
+  document.getElementById('r-sheet-content').innerHTML = `
+    <div class="rs-header">
+      <h2>${settings.name || 'Government Technical College, Okitipupa'}</h2>
+      <p>Department of ${getDeptName(student.dept)}</p>
+      <p style="font-size:0.76rem;color:#888;margin-top:0.2rem">${settings.session || '2024/2025'} — ${settings.term || 'First Term'}</p>
+    </div>
+    <dl class="rs-meta">
+      <dt>Student Name</dt><dd>${student.name}</dd>
+      <dt>Reg. Number</dt><dd>${student.reg}</dd>
+      <dt>Department</dt><dd>${getDeptName(student.dept)}</dd>
+      <dt>Level</dt><dd>${student.level}</dd>
+      <dt>Gender</dt><dd>${student.gender}</dd>
+      <dt>Session</dt><dd>${settings.session || '2024/2025'} — ${settings.term || 'First Term'}</dd>
+    </dl>
+    <table class="rs-tbl">
+      <thead><tr><th>Code</th><th>Subject</th><th>Units</th><th>T1(10)</th><th>T2(10)</th><th>T3(10)</th><th>CA(30)</th><th>Exam(70)</th><th>Total</th><th>Grade</th><th>GP</th><th>WGP</th></tr></thead>
+      <tbody>${tradeSection}${gedSection}</tbody>
+      <tfoot><tr style="background:#f3f4f6;font-weight:700"><td colspan="2">TOTALS</td><td>${totalUnits}</td><td colspan="8"></td><td>${totalWGP}</td></tr></tfoot>
+    </table>
+    <div class="rs-summary">
+      <div class="rs-summary-item"><div class="sv">${avg}%</div><div class="sl">Average</div></div>
+      <div class="rs-summary-item"><div class="sv">${gpa}</div><div class="sl">GPA</div></div>
+      <div class="rs-summary-item"><div class="sv">${totalUnits}</div><div class="sl">Total Units</div></div>
+    </div>
+    <div class="rs-footer">
+      <span>Printed: ${new Date().toLocaleDateString()}</span>
+      <span>${settings.principal ? 'Principal: ' + settings.principal : settings.name || 'GTC Okitipupa'}</span>
+    </div>
+  `;
+  
+  document.getElementById('r-sheet-wrap').style.display = 'block';
+  document.getElementById('r-list').style.display = 'none';
+}
   const dept=document.getElementById('r-dept')?.value||'';
   const level=document.getElementById('r-level')?.value||'';
   const q=(document.getElementById('r-search')?.value||'').toLowerCase().trim();
@@ -1193,7 +1294,6 @@ function searchResults(){
   }).join('')}</tbody></table></div>`;
 }
 
-function viewStudentResult(reg){
   const student=getStudents().find(s=>s.reg===reg);
   if(!student)return;
   const settings2=getSettings();
