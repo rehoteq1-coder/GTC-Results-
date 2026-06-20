@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gtc-results-v3';
+const CACHE_NAME = 'gtc-results-v4';
 const STATIC_ASSETS = [
   './',
   './index.html',

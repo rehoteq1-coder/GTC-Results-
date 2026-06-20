@@ -10,7 +10,8 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="GTC Results">
   <link rel="apple-touch-icon" href="icon-192.png">
-  <title>GTC Okitipupa — Result Management System</title>
+  <!-- v4.0 - term filter fix -->
+<title>GTC Okitipupa — Result Management System</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
 <!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -416,6 +417,10 @@ select option{background:var(--deep);}
     <div class="search-bar">
       <input type="text" id="a-search" placeholder="Search…" oninput="renderAdminResults()"/>
       <select id="a-dept-filter" onchange="renderAdminResults()"><option value="">All Departments</option></select>
+      <select id="a-term-filter" onchange="renderAdminResults()">
+        <option value="">All Terms</option>
+        <option>First Term</option><option>Second Term</option><option>Third Term</option>
+      </select>
     </div>
     <div class="wrap"><table class="tbl"><thead><tr><th>Reg.No.</th><th>Name</th><th>Dept</th><th>Subject</th><th>Level</th><th>T1</th><th>T2</th><th>T3</th><th>CA</th><th>Exam</th><th>Total</th><th>Grade</th><th></th></tr></thead>
     <tbody id="a-results-body"></tbody></table></div>
@@ -772,7 +777,7 @@ function loadMyResult(reg){
     <div class="rs-header">
       <h2>${settings.name||'Government Technical College, Okitipupa'}</h2>
       <p>Department of ${getDeptName(student.dept)}</p>
-      <p style="font-size:0.76rem;color:#888;margin-top:0.2rem">${settings.session||'2024/2025'} — ${settings.term||'First Term'}</p>
+      <p style="font-size:0.76rem;color:#888;margin-top:0.2rem">${currentSession||settings.session||'2024/2025'} — ${currentTerm||settings.term||'First Term'}</p>
     </div>
     <dl class="rs-meta">
       <dt>Student Name</dt><dd>${student.name}</dd>
@@ -780,7 +785,7 @@ function loadMyResult(reg){
       <dt>Department</dt><dd>${getDeptName(student.dept)}</dd>
       <dt>Level</dt><dd>${student.level}</dd>
       <dt>Gender</dt><dd>${student.gender}</dd>
-      <dt>Session</dt><dd>${settings.session||'2024/2025'} — ${settings.term||'First Term'}</dd>
+      <dt>Session</dt><dd>${currentSession||settings.session||'2024/2025'} — ${currentTerm||settings.term||'First Term'}</dd>
     </dl>
     <table class="rs-tbl">
       <thead><tr><th>Code</th><th>Subject</th><th>Units</th><th>T1(10)</th><th>T2(10)</th><th>T3(10)</th><th>CA(30)</th><th>Exam(70)</th><th>Total</th><th>Grade</th><th>GP</th><th>WGP</th></tr></thead>
@@ -1197,14 +1202,18 @@ function viewStudentResult(reg){
   const student=getStudents().find(s=>s.reg===reg);
   if(!student)return;
   const settings2=getSettings();
-  const currentTerm=settings2.term||'';
-  const currentSession=settings2.session||'';
-  // Show results for current term/session; fall back to all if none match
+  // Respect the r-term and r-session filter dropdowns if set;
+  // only fall back to admin settings when filter is blank
+  const selectedTerm=(document.getElementById('r-term')?.value||'').trim();
+  const selectedSession=(document.getElementById('r-session')?.value||'').trim();
+  const currentTerm=selectedTerm||settings2.term||'';
+  const currentSession=selectedSession||settings2.session||'';
+  // Show results for selected term/session
   let allRecords=getResults().filter(r=>r.studentReg===reg);
   let records = currentTerm
     ? allRecords.filter(r=>r.term===currentTerm && (!currentSession||r.session===currentSession))
     : allRecords.filter(r=>!currentSession||r.session===currentSession);
-  if(!records.length){ toast('No results for '+student.name+' in '+(currentTerm||'this period')+' yet. Check term/session in Admin Settings.',false); return; }
+  if(!records.length){ toast('No results for '+student.name+' in '+(currentTerm||'this session')+' yet. Use the Term filter above or check Admin Settings.',false); return; }
   const settings=getSettings();
   const tradeRecs=records.filter(r=>!r.isGed);
   const gedRecs=records.filter(r=>r.isGed);
@@ -1224,7 +1233,7 @@ function viewStudentResult(reg){
     <div class="rs-header">
       <h2>${settings.name||'Government Technical College, Okitipupa'}</h2>
       <p>Department of ${getDeptName(student.dept)}</p>
-      <p style="font-size:0.76rem;color:#888;margin-top:0.2rem">${settings.session||'2024/2025'} — ${settings.term||'First Term'}</p>
+      <p style="font-size:0.76rem;color:#888;margin-top:0.2rem">${currentSession||settings.session||'2024/2025'} — ${currentTerm||settings.term||'First Term'}</p>
     </div>
     <dl class="rs-meta">
       <dt>Student Name</dt><dd>${student.name}</dd>
@@ -1232,7 +1241,7 @@ function viewStudentResult(reg){
       <dt>Department</dt><dd>${getDeptName(student.dept)}</dd>
       <dt>Level</dt><dd>${student.level}</dd>
       <dt>Gender</dt><dd>${student.gender}</dd>
-      <dt>Session</dt><dd>${settings.session||'2024/2025'} — ${settings.term||'First Term'}</dd>
+      <dt>Session</dt><dd>${currentSession||settings.session||'2024/2025'} — ${currentTerm||settings.term||'First Term'}</dd>
     </dl>
     <table class="rs-tbl">
       <thead><tr><th>Code</th><th>Subject</th><th>Units</th><th>T1(10)</th><th>T2(10)</th><th>T3(10)</th><th>CA(30)</th><th>Exam(70)</th><th>Total</th><th>Grade</th><th>GP</th><th>WGP</th></tr></thead>
@@ -1297,9 +1306,11 @@ function renderAdminStats(){
 function renderAdminResults(){
   const q=(document.getElementById('a-search')?.value||'').toLowerCase();
   const df=document.getElementById('a-dept-filter')?.value||'';
+  const atf=document.getElementById('a-term-filter')?.value||'';
   let rows=getResults();
   if(q) rows=rows.filter(r=>r.studentReg.toLowerCase().includes(q)||r.studentName.toLowerCase().includes(q)||r.subjectCode.toLowerCase().includes(q));
   if(df) rows=rows.filter(r=>r.dept===df);
+  if(atf) rows=rows.filter(r=>r.term===atf);
   const tbody=document.getElementById('a-results-body');
   if(!rows.length){ tbody.innerHTML=`<tr><td colspan="13"><div class="empty"><div class="ei">📭</div><p>No results yet.</p></div></td></tr>`; return; }
   tbody.innerHTML=rows.map((r,i)=>`<tr>
@@ -1382,6 +1393,7 @@ function syncSettingsToFilters(){
   // also sync admin settings fields
   const as=document.getElementById('a-session'); if(as&&s.session) as.value=s.session;
   const at=document.getElementById('a-term'); if(at&&s.term) at.value=s.term;
+  const atf=document.getElementById('a-term-filter'); if(atf&&s.term) atf.value=s.term;
   const an=document.getElementById('a-name'); if(an&&s.name) an.value=s.name;
   const ap=document.getElementById('a-principal'); if(ap&&s.principal) ap.value=s.principal;
 }
