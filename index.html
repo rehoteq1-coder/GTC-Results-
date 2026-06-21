@@ -10,7 +10,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="GTC Results">
   <link rel="apple-touch-icon" href="icon-192.png">
-  <!-- v4.0 - term filter fix -->
+  <!-- v5.0 - missing results fix -->
 <title>GTC Okitipupa — Result Management System</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
 <!-- Firebase -->
@@ -1047,9 +1047,13 @@ function loadTeacherSubjects(){
   } else {
     document.getElementById('ged-target-dept-row').style.display='none';
     const deptSubs=getSubjects().filter(s=>s.dept===dept);
-    if(deptSubs.length){
+    // Also pick up subjects already in results (in case some weren't formally registered)
+    const extraCodes=[...new Set(getResults().filter(r=>r.dept===dept&&!r.isGed).map(r=>r.subjectCode))].filter(c=>!deptSubs.find(s=>s.code===c));
+    const extraSubs=extraCodes.map(c=>{const r=getResults().find(x=>x.subjectCode===c&&x.dept===dept);return{code:c,title:r?r.subjectTitle||c:c,units:r?r.units||1:1,dept};});
+    const allDeptSubs=[...deptSubs,...extraSubs];
+    if(allDeptSubs.length){
       const grp=document.createElement('optgroup'); grp.label='--- Trade Subjects ---';
-      deptSubs.forEach(s=>{ const o=document.createElement('option'); o.value=s.code; o.textContent=`${s.code} — ${s.title}`; grp.appendChild(o); });
+      allDeptSubs.forEach(s=>{ const o=document.createElement('option'); o.value=s.code; o.textContent=`${s.code} — ${s.title}`; grp.appendChild(o); });
       sel.appendChild(grp);
     }
     const gedGrp=document.createElement('optgroup'); gedGrp.label='--- General Education (All Students) ---';
@@ -1082,7 +1086,7 @@ function loadStudentsForScoring(){
   tbody.innerHTML=students.map((s,i)=>{
     const curTerm=document.getElementById('t-term')?.value||'';
     const curSess=document.getElementById('t-session')?.value||'';
-    const ex=results.find(r=>r.studentReg===s.reg&&r.subjectCode===subCode&&(!curTerm||r.term===curTerm)&&(!curSess||r.session===curSess));
+    const ex=results.find(r=>r.studentReg===s.reg&&r.subjectCode===subCode&&(!curTerm||r.term===curTerm||!r.term)&&(!curSess||r.session===curSess||!r.session));
     const t1=ex?ex.t1:''; const t2=ex?ex.t2:''; const t3=ex?ex.t3:''; const exam=ex?ex.exam:'';
     return `<tr id="trow-${i}">
       <td><span style="font-family:'DM Mono',monospace">${s.reg}</span></td>
@@ -1186,7 +1190,7 @@ function searchResults(){
   <tbody>${students.map(s=>{
     const activeTerm=document.getElementById('r-term')?.value||'';
     const activeSess=document.getElementById('r-session')?.value||'';
-    const rc=results.filter(r=>r.studentReg===s.reg&&(!activeTerm||r.term===activeTerm)&&(!activeSess||r.session===activeSess)).length;
+    const rc=results.filter(r=>r.studentReg===s.reg&&(!activeTerm||r.term===activeTerm||!r.term)&&(!activeSess||r.session===activeSess||!r.session)).length;
     return `<tr>
       <td><span style="font-family:'DM Mono',monospace;color:var(--gold)">${s.reg}</span></td>
       <td>${s.name}</td>
@@ -1209,11 +1213,12 @@ function viewStudentResult(reg){
   const currentTerm=selectedTerm||settings2.term||'';
   const currentSession=selectedSession||settings2.session||'';
   // Show results for selected term/session
+  // Include records with NO term tag (legacy data) when a term is selected
   let allRecords=getResults().filter(r=>r.studentReg===reg);
   let records = currentTerm
-    ? allRecords.filter(r=>r.term===currentTerm && (!currentSession||r.session===currentSession))
-    : allRecords.filter(r=>!currentSession||r.session===currentSession);
-  if(!records.length){ toast('No results for '+student.name+' in '+(currentTerm||'this session')+' yet. Use the Term filter above or check Admin Settings.',false); return; }
+    ? allRecords.filter(r=>(r.term===currentTerm||!r.term) && (!currentSession||r.session===currentSession||!r.session))
+    : allRecords.filter(r=>!currentSession||r.session===currentSession||!r.session);
+  if(!records.length){ toast('No results for '+student.name+' yet. Check Term filter or confirm data is saved in Firebase.',false); return; }
   const settings=getSettings();
   const tradeRecs=records.filter(r=>!r.isGed);
   const gedRecs=records.filter(r=>r.isGed);
@@ -1310,7 +1315,7 @@ function renderAdminResults(){
   let rows=getResults();
   if(q) rows=rows.filter(r=>r.studentReg.toLowerCase().includes(q)||r.studentName.toLowerCase().includes(q)||r.subjectCode.toLowerCase().includes(q));
   if(df) rows=rows.filter(r=>r.dept===df);
-  if(atf) rows=rows.filter(r=>r.term===atf);
+  if(atf) rows=rows.filter(r=>r.term===atf||(!r.term));
   const tbody=document.getElementById('a-results-body');
   if(!rows.length){ tbody.innerHTML=`<tr><td colspan="13"><div class="empty"><div class="ei">📭</div><p>No results yet.</p></div></td></tr>`; return; }
   tbody.innerHTML=rows.map((r,i)=>`<tr>
