@@ -10,7 +10,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="GTC Results">
   <link rel="apple-touch-icon" href="icon-192.png">
-  <!-- v5.0 - missing results fix -->
+  <!-- v6.0 - all-term default view -->
 <title>GTC Okitipupa — Result Management System</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
 <!-- Firebase -->
@@ -746,15 +746,21 @@ function loadMyResult(reg){
   const currentSession=settings2.session||'';
   // Show results for current term/session; fall back to all if none match
   let allRecords=getResults().filter(r=>r.studentReg===reg);
+  // First try to show current term results; fall back to ALL records so students
+  // never see an empty screen when admin has already moved to the next term setting.
   let records = currentTerm
-    ? allRecords.filter(r=>r.term===currentTerm && (!currentSession||r.session===currentSession))
-    : allRecords.filter(r=>!currentSession||r.session===currentSession);
+    ? allRecords.filter(r=>(r.term===currentTerm||!r.term||r.term==='') && (!currentSession||r.session===currentSession||!r.session||r.session===''))
+    : allRecords.filter(r=>!currentSession||r.session===currentSession||!r.session||r.session==='');
+  if(!records.length && currentTerm){
+    // Fallback: admin may have changed the term setting — show all available records
+    records = allRecords;
+  }
   if(!records.length){
     document.getElementById('my-result-content').innerHTML=`
       <div style="text-align:center;padding:3rem;color:#555;">
         <div style="font-size:3rem;margin-bottom:1rem;">📭</div>
         <h3 style="font-family:'Playfair Display',serif;color:#0a0f2c;">No Results Yet</h3>
-        <p style="color:#888;margin-top:0.5rem;">${currentTerm?'No results entered for <strong>'+currentTerm+'</strong> yet.':'Your results have not been entered yet.'}<br/>Please check back later.</p>
+        <p style="color:#888;margin-top:0.5rem;">Your results have not been entered yet.<br/>Please check back later.</p>
       </div>`;
     return;
   }
@@ -777,7 +783,7 @@ function loadMyResult(reg){
     <div class="rs-header">
       <h2>${settings.name||'Government Technical College, Okitipupa'}</h2>
       <p>Department of ${getDeptName(student.dept)}</p>
-      <p style="font-size:0.76rem;color:#888;margin-top:0.2rem">${currentSession||settings.session||'2024/2025'} — ${currentTerm||settings.term||'First Term'}</p>
+      <p style="font-size:0.76rem;color:#888;margin-top:0.2rem">${displaySession} — ${displayTerm}</p>
     </div>
     <dl class="rs-meta">
       <dt>Student Name</dt><dd>${student.name}</dd>
@@ -785,7 +791,7 @@ function loadMyResult(reg){
       <dt>Department</dt><dd>${getDeptName(student.dept)}</dd>
       <dt>Level</dt><dd>${student.level}</dd>
       <dt>Gender</dt><dd>${student.gender}</dd>
-      <dt>Session</dt><dd>${currentSession||settings.session||'2024/2025'} — ${currentTerm||settings.term||'First Term'}</dd>
+      <dt>Session</dt><dd>${displaySession} — ${displayTerm}</dd>
     </dl>
     <table class="rs-tbl">
       <thead><tr><th>Code</th><th>Subject</th><th>Units</th><th>T1(10)</th><th>T2(10)</th><th>T3(10)</th><th>CA(30)</th><th>Exam(70)</th><th>Total</th><th>Grade</th><th>GP</th><th>WGP</th></tr></thead>
@@ -1190,7 +1196,7 @@ function searchResults(){
   <tbody>${students.map(s=>{
     const activeTerm=document.getElementById('r-term')?.value||'';
     const activeSess=document.getElementById('r-session')?.value||'';
-    const rc=results.filter(r=>r.studentReg===s.reg&&(!activeTerm||r.term===activeTerm||!r.term)&&(!activeSess||r.session===activeSess||!r.session)).length;
+    const rc=results.filter(r=>r.studentReg===s.reg&&(!activeTerm||r.term===activeTerm||!r.term||r.term==='')&&(!activeSess||r.session===activeSess||!r.session||r.session==='')).length;
     return `<tr>
       <td><span style="font-family:'DM Mono',monospace;color:var(--gold)">${s.reg}</span></td>
       <td>${s.name}</td>
@@ -1210,14 +1216,21 @@ function viewStudentResult(reg){
   // only fall back to admin settings when filter is blank
   const selectedTerm=(document.getElementById('r-term')?.value||'').trim();
   const selectedSession=(document.getElementById('r-session')?.value||'').trim();
-  const currentTerm=selectedTerm||settings2.term||'';
-  const currentSession=selectedSession||settings2.session||'';
-  // Show results for selected term/session
-  // Include records with NO term tag (legacy data) when a term is selected
+  // IMPORTANT: Only filter by term/session if user explicitly chose from dropdown.
+  // Do NOT fall back to admin settings term — that would silently hide data
+  // whenever admin switches to a new term (e.g. Third Term) for data entry.
+  const currentTerm=selectedTerm;
+  const currentSession=selectedSession;
+  const displayTerm=currentTerm||settings2.term||'All Terms';
+  const displaySession=currentSession||settings2.session||'2024/2025';
   let allRecords=getResults().filter(r=>r.studentReg===reg);
+  // If a specific term is chosen, show that term + any legacy untagged records.
+  // If no term chosen, show ALL records for the student (across all terms).
   let records = currentTerm
-    ? allRecords.filter(r=>(r.term===currentTerm||!r.term) && (!currentSession||r.session===currentSession||!r.session))
-    : allRecords.filter(r=>!currentSession||r.session===currentSession||!r.session);
+    ? allRecords.filter(r=>(r.term===currentTerm||!r.term||r.term==='') && (!currentSession||r.session===currentSession||!r.session||r.session===''))
+    : currentSession
+      ? allRecords.filter(r=>r.session===currentSession||!r.session||r.session==='')
+      : allRecords;
   if(!records.length){ toast('No results for '+student.name+' yet. Check Term filter or confirm data is saved in Firebase.',false); return; }
   const settings=getSettings();
   const tradeRecs=records.filter(r=>!r.isGed);
