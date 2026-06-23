@@ -440,20 +440,30 @@ select option{background:var(--deep);}
   </div>
   <div class="panel">
     <div class="panel-title">🔗 Result <span>Link Generator</span></div>
-    <p class="text-muted mb1">Generate a shareable link so a student or parent can view a result directly — no login needed.</p>
+    <p class="text-muted mb1">Generate shareable result links — for a single student or every student in a department at once.</p>
+    <!-- Mode toggle -->
+    <div style="display:flex;gap:0.5rem;margin-bottom:1rem;flex-wrap:wrap;">
+      <button id="lg-mode-single" class="btn btn-primary btn-sm" onclick="lgSetMode('single')">👤 Single Student</button>
+      <button id="lg-mode-dept" class="btn btn-ghost btn-sm" onclick="lgSetMode('dept')">🏛️ Entire Department</button>
+    </div>
     <div class="form-grid">
       <div class="form-group"><label>Department</label>
         <select id="lg-dept" onchange="populateLgStudents()"><option value="">-- Select Department --</option></select></div>
-      <div class="form-group"><label>Student</label>
+      <div class="form-group" id="lg-student-row"><label>Student</label>
         <select id="lg-student"><option value="">-- Select Student --</option></select></div>
       <div class="form-group"><label>Term</label>
         <select id="lg-term">
+          <option value="">All Terms</option>
           <option>First Term</option><option>Second Term</option><option>Third Term</option>
         </select></div>
       <div class="form-group"><label>Session</label>
         <input type="text" id="lg-session" value="2024/2025"/></div>
     </div>
-    <div class="flex-end"><button class="btn btn-primary" onclick="generateResultLink()">🔗 Generate Link</button></div>
+    <div class="flex-end">
+      <button id="lg-btn-single" class="btn btn-primary" onclick="generateResultLink()">🔗 Generate Link</button>
+      <button id="lg-btn-dept" class="btn btn-primary" style="display:none" onclick="generateDeptLinks()">🏛️ Generate All Department Links</button>
+    </div>
+    <!-- Single student result -->
     <div id="lg-result" style="display:none;margin-top:1rem;">
       <div style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:0.8rem;font-family:'DM Mono',monospace;font-size:0.78rem;word-break:break-all;color:var(--gold);" id="lg-link-text"></div>
       <div style="display:flex;gap:0.5rem;margin-top:0.5rem;">
@@ -461,6 +471,8 @@ select option{background:var(--deep);}
         <button class="btn btn-ghost btn-sm" onclick="shareResultLink()">📤 Share</button>
       </div>
     </div>
+    <!-- Department batch result -->
+    <div id="lg-dept-result" style="display:none;margin-top:1rem;"></div>
   </div>
 
   <div class="panel">
@@ -742,19 +754,14 @@ function loadMyResult(reg){
   const student=getStudents().find(s=>s.reg===reg);
   if(!student){ toast('Could not load your result',false); return; }
   const settings2=getSettings();
-  const currentTerm=settings2.term||'';
-  const currentSession=settings2.session||'';
-  // Show results for current term/session; fall back to all if none match
+  // Always show ALL records regardless of admin's current term setting.
+  // Admin switching term for data entry must NOT hide previous term results.
   let allRecords=getResults().filter(r=>r.studentReg===reg);
-  // First try to show current term results; fall back to ALL records so students
-  // never see an empty screen when admin has already moved to the next term setting.
-  let records = currentTerm
-    ? allRecords.filter(r=>(r.term===currentTerm||!r.term||r.term==='') && (!currentSession||r.session===currentSession||!r.session||r.session===''))
-    : allRecords.filter(r=>!currentSession||r.session===currentSession||!r.session||r.session==='');
-  if(!records.length && currentTerm){
-    // Fallback: admin may have changed the term setting — show all available records
-    records = allRecords;
-  }
+  let records = allRecords;
+  const displayTerm = records.length
+    ? ([...new Set(records.map(r=>r.term).filter(Boolean))].join(' / ') || 'All Terms')
+    : (settings2.term||'All Terms');
+  const displaySession = settings2.session||'2024/2025';
   if(!records.length){
     document.getElementById('my-result-content').innerHTML=`
       <div style="text-align:center;padding:3rem;color:#555;">
@@ -1171,7 +1178,7 @@ function submitTeacherScores(){
 // RESULTS VIEW
 // ================================================================
 function populateResultFilters(){
-  ['r-dept','a-dept-filter'].forEach(id=>{
+  ['r-dept','a-dept-filter','lg-dept'].forEach(id=>{
     const sel=document.getElementById(id); if(!sel)return;
     const cur=sel.value;
     sel.innerHTML='<option value="">All Departments</option>';
@@ -1196,7 +1203,7 @@ function searchResults(){
   <tbody>${students.map(s=>{
     const activeTerm=document.getElementById('r-term')?.value||'';
     const activeSess=document.getElementById('r-session')?.value||'';
-    const rc=results.filter(r=>r.studentReg===s.reg&&(!activeTerm||r.term===activeTerm||!r.term||r.term==='')&&(!activeSess||r.session===activeSess||!r.session||r.session==='')).length;
+    const rc=results.filter(r=>r.studentReg===s.reg&&(!activeTerm||r.term===activeTerm)&&(!activeSess||r.session===activeSess||!r.session||r.session==='')).length;
     return `<tr>
       <td><span style="font-family:'DM Mono',monospace;color:var(--gold)">${s.reg}</span></td>
       <td>${s.name}</td>
@@ -1226,12 +1233,15 @@ function viewStudentResult(reg){
   let allRecords=getResults().filter(r=>r.studentReg===reg);
   // If a specific term is chosen, show that term + any legacy untagged records.
   // If no term chosen, show ALL records for the student (across all terms).
+  // STRICT: if term selected → only that term. No term → ALL records shown.
   let records = currentTerm
-    ? allRecords.filter(r=>(r.term===currentTerm||!r.term||r.term==='') && (!currentSession||r.session===currentSession||!r.session||r.session===''))
+    ? allRecords.filter(r=>r.term===currentTerm && (!currentSession||r.session===currentSession||!r.session||r.session===''))
     : currentSession
       ? allRecords.filter(r=>r.session===currentSession||!r.session||r.session==='')
       : allRecords;
-  if(!records.length){ toast('No results for '+student.name+' yet. Check Term filter or confirm data is saved in Firebase.',false); return; }
+  // Fallback: if strict filter hides everything, show all so screen is never blank
+  if(!records.length && currentTerm){ records=allRecords; }
+  if(!records.length){ toast('No results for '+student.name+' yet.',false); return; }
   const settings=getSettings();
   const tradeRecs=records.filter(r=>!r.isGed);
   const gedRecs=records.filter(r=>r.isGed);
@@ -1404,8 +1414,8 @@ function syncSettingsToFilters(){
   const s=getSettings();
   const ts=document.getElementById('t-session'); if(ts) ts.value=s.session||'2024/2025';
   const tt=document.getElementById('t-term'); if(tt) tt.value=s.term||'First Term';
-  const rs=document.getElementById('r-session'); if(rs) rs.value=s.session||'2024/2025';
-  const rt=document.getElementById('r-term'); if(rt) rt.value=s.term||'First Term';
+  // r-session and r-term result-viewer filters are intentionally NOT auto-synced.
+  // Auto-syncing hides records whenever admin changes term for new data entry.
   const ls=document.getElementById('lg-session'); if(ls) ls.value=s.session||'2024/2025';
   const lt=document.getElementById('lg-term'); if(lt) lt.value=s.term||'First Term';
   // also sync admin settings fields
@@ -1423,6 +1433,19 @@ function populateLgDepts(){
   const sel=document.getElementById('lg-dept'); if(!sel) return;
   sel.innerHTML='<option value="">-- Select Department --</option>'+
     DEPARTMENTS.filter(d=>d.id!=='GED').map(d=>`<option value="${d.id}">${d.icon} ${d.name}</option>`).join('');
+}
+
+// Link Generator mode toggle
+function lgSetMode(mode){
+  const isSingle = mode==='single';
+  document.getElementById('lg-mode-single').className = isSingle ? 'btn btn-primary btn-sm' : 'btn btn-ghost btn-sm';
+  document.getElementById('lg-mode-dept').className = isSingle ? 'btn btn-ghost btn-sm' : 'btn btn-primary btn-sm';
+  document.getElementById('lg-student-row').style.display = isSingle ? '' : 'none';
+  document.getElementById('lg-btn-single').style.display = isSingle ? '' : 'none';
+  document.getElementById('lg-btn-dept').style.display = isSingle ? 'none' : '';
+  document.getElementById('lg-result').style.display = 'none';
+  document.getElementById('lg-dept-result').style.display = 'none';
+  window._lgMode = mode;
 }
 
 function populateLgStudents(){
@@ -1445,7 +1468,78 @@ function generateResultLink(){
   document.getElementById('lg-link-text').textContent=link;
   window._generatedLink=link;
   document.getElementById('lg-result').style.display='block';
+  document.getElementById('lg-dept-result').style.display='none';
   toast('Link generated! Copy and share it ✅');
+}
+
+function generateDeptLinks(){
+  const dept=document.getElementById('lg-dept').value;
+  const term=document.getElementById('lg-term').value;
+  const session=document.getElementById('lg-session').value;
+  if(!dept){ toast('Select a department first',false); return; }
+  const students=getStudents().filter(s=>s.dept===dept).sort((a,b)=>a.name.localeCompare(b.name));
+  if(!students.length){ toast('No students found in this department',false); return; }
+  const base=window.location.origin+window.location.pathname.replace(/\/[^\/]*$/,'/')+'index.html';
+  const links=students.map(s=>{
+    const params=`?view=result&reg=${encodeURIComponent(s.reg)}&term=${encodeURIComponent(term)}&session=${encodeURIComponent(session)}`;
+    const url=(base.includes('index.html')?base:base.replace(/\/$/,'/')+'index.html')+params;
+    return {name:s.name, level:s.level, reg:s.reg, url};
+  });
+  window._deptLinks=links;
+  const allText=links.map(l=>`${l.name} (${l.level}):\n${l.url}`).join('\n\n');
+  window._deptLinksText=allText;
+  const deptName=getDeptName(dept);
+  document.getElementById('lg-dept-result').innerHTML=`
+    <div style="background:rgba(201,168,76,0.08);border:1px solid rgba(201,168,76,0.25);border-radius:10px;padding:1rem;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.8rem;flex-wrap:wrap;gap:0.5rem;">
+        <strong style="color:var(--gold)">${deptName} — ${students.length} student link(s) generated</strong>
+        <button class="btn btn-success btn-sm" onclick="copyAllDeptLinks()">📋 Copy All Links</button>
+      </div>
+      <div style="max-height:340px;overflow-y:auto;display:flex;flex-direction:column;gap:0.5rem;">
+        ${links.map((l,i)=>`
+          <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);border-radius:7px;padding:0.6rem 0.8rem;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.4rem;">
+            <div>
+              <div style="font-weight:600;color:#fff;font-size:0.84rem;">${l.name}</div>
+              <div style="font-size:0.72rem;color:rgba(255,255,255,0.5)">${l.level} · ${l.reg}</div>
+            </div>
+            <div style="display:flex;gap:0.4rem;align-items:center;flex-wrap:wrap;">
+              <span style="font-family:'DM Mono',monospace;font-size:0.68rem;color:var(--gold);word-break:break-all;max-width:260px">${l.url}</span>
+              <button class="btn btn-ghost btn-sm" style="font-size:0.72rem;padding:0.2rem 0.5rem" onclick="copySingleDeptLink(${i})">📋</button>
+              <button class="btn btn-ghost btn-sm" style="font-size:0.72rem;padding:0.2rem 0.5rem" onclick="shareSingleDeptLink(${i})">📤</button>
+            </div>
+          </div>`).join('')}
+      </div>
+    </div>`;
+  document.getElementById('lg-dept-result').style.display='block';
+  document.getElementById('lg-result').style.display='none';
+  toast(`${students.length} links generated for ${deptName} ✅`);
+}
+
+function copyAllDeptLinks(){
+  const text=window._deptLinksText||'';
+  if(!text)return;
+  navigator.clipboard.writeText(text).then(()=>toast('All links copied to clipboard ✅')).catch(()=>{
+    const ta=document.createElement('textarea'); ta.value=text;
+    document.body.appendChild(ta); ta.select(); document.execCommand('copy');
+    document.body.removeChild(ta); toast('All links copied ✅');
+  });
+}
+
+function copySingleDeptLink(i){
+  const links=window._deptLinks||[];
+  if(!links[i])return;
+  navigator.clipboard.writeText(links[i].url).then(()=>toast('Link copied ✅')).catch(()=>{
+    const ta=document.createElement('textarea'); ta.value=links[i].url;
+    document.body.appendChild(ta); ta.select(); document.execCommand('copy');
+    document.body.removeChild(ta); toast('Link copied ✅');
+  });
+}
+
+function shareSingleDeptLink(i){
+  const links=window._deptLinks||[];
+  if(!links[i])return;
+  if(navigator.share){ navigator.share({title:'GTC Result — '+links[i].name, text:'View result:', url:links[i].url}); }
+  else { copySingleDeptLink(i); }
 }
 
 function copyResultLink(){
