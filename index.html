@@ -17,6 +17,8 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<!-- Excel Export (styled) -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
 <style>
 :root{--navy:#0a0f2c;--deep:#111827;--gold:#c9a84c;--gold-light:#e8c97a;--white:#ffffff;--muted:#6b7280;--success:#16a34a;--danger:#dc2626;--border:rgba(201,168,76,0.2);}
 *{margin:0;padding:0;box-sizing:border-box;}
@@ -150,6 +152,26 @@ select option{background:var(--deep);}
   .rs-footer{color:#555!important;border-top:1px solid #ccc!important;}
   .no-print{display:none!important;}
   button{display:none!important;}
+}
+/* Promotion Lists & Broadsheet modern styles */
+.pl-card{background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:12px;padding:1.2rem;margin-bottom:1rem;}
+.pl-card-header{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.6rem;margin-bottom:0.8rem;}
+.pl-badge{display:inline-flex;align-items:center;gap:0.3rem;padding:0.25rem 0.7rem;border-radius:20px;font-size:0.78rem;font-weight:600;}
+.pl-badge-promoted{background:rgba(22,163,74,0.15);color:#4ade80;border:1px solid rgba(22,163,74,0.3);}
+.pl-badge-trial{background:rgba(202,138,4,0.15);color:#facc15;border:1px solid rgba(202,138,4,0.3);}
+.pl-badge-resit{background:rgba(124,58,237,0.15);color:#a78bfa;border:1px solid rgba(124,58,237,0.3);}
+.pl-badge-repeat{background:rgba(220,38,38,0.15);color:#f87171;border:1px solid rgba(220,38,38,0.3);}
+.pl-print-area{background:#fff;color:#111;border-radius:10px;padding:1.5rem;}
+.pl-print-header{text-align:center;border-bottom:3px double #0a0f2c;padding-bottom:0.8rem;margin-bottom:1rem;}
+.pl-print-header h2{font-family:'Playfair Display',serif;color:#0a0f2c;font-size:1.3rem;}
+.pl-print-header p{color:#555;font-size:0.82rem;margin-top:0.2rem;}
+.pl-print-tbl{width:100%;border-collapse:collapse;font-size:0.84rem;margin-top:0.6rem;}
+.pl-print-tbl th{background:#0a0f2c;color:#fff;padding:0.5rem 0.6rem;text-align:left;font-size:0.75rem;}
+.pl-print-tbl td{padding:0.45rem 0.6rem;border-bottom:1px solid #e5e7eb;}
+.pl-print-tbl tr:nth-child(even) td{background:#f9fafb;}
+@media print{
+  .pl-print-area{box-shadow:none!important;}
+  .pl-print-tbl th{background:#0a0f2c!important;color:#fff!important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
 }
 @media(max-width:600px){header{padding:0.8rem 1rem;}section{padding:1rem;}.panel{padding:1.1rem;}}
 </style>
@@ -403,18 +425,28 @@ select option{background:var(--deep);}
     </div>
   </div>
   <div class="panel">
-    <div class="panel-title">📊 <span>Broadsheet</span> Download</div>
-    <p class="text-muted mb1">Download a complete broadsheet of all students, subjects and scores as a CSV file that opens in Excel or Google Sheets.</p>
-    <div style="display:flex;gap:0.8rem;flex-wrap:wrap;align-items:center;">
-      <select id="bs-dept-filter" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:7px;padding:0.5rem 0.8rem;color:var(--white);font-family:'DM Sans',sans-serif;">
-        <option value="">All Departments</option>
-      </select>
-      <select id="bs-level-filter" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:7px;padding:0.5rem 0.8rem;color:var(--white);font-family:'DM Sans',sans-serif;">
-        <option value="">All Levels</option>
-        <option>NTC 1</option><option>NTC 2</option><option>NTC 3</option>
-      </select>
-      <button class="btn btn-primary" onclick="downloadBroadsheet()">📥 Download Broadsheet (CSV)</button>
+    <div class="panel-title">📊 <span>Broadsheet</span> — Modern Excel Export</div>
+    <p class="text-muted mb1">Generate a clean, well-formatted Excel broadsheet (.xlsx) with school header, styled columns, averages, GPA and remarks. Filter by department, class, session and term. Opens perfectly in latest Excel, Google Sheets and WPS.</p>
+    <div class="form-grid mb1">
+      <div class="form-group"><label>Department</label>
+        <select id="bs-dept-filter"><option value="">All Departments</option></select>
+      </div>
+      <div class="form-group"><label>Class / Level</label>
+        <select id="bs-level-filter"><option value="">All Levels</option><option>NTC 1</option><option>NTC 2</option><option>NTC 3</option></select>
+      </div>
+      <div class="form-group"><label>Session</label>
+        <input type="text" id="bs-session" placeholder="e.g. 2024/2025" value="2024/2025"/>
+      </div>
+      <div class="form-group"><label>Term</label>
+        <select id="bs-term-filter"><option value="">All Terms</option><option>First Term</option><option>Second Term</option><option selected>Third Term</option></select>
+      </div>
     </div>
+    <div style="display:flex;gap:0.8rem;flex-wrap:wrap;align-items:center;">
+      <button class="btn btn-primary" onclick="downloadBroadsheetExcel()">📥 Download Broadsheet (Excel .xlsx)</button>
+      <button class="btn btn-ghost" onclick="downloadBroadsheet()">📄 Download as CSV (legacy)</button>
+      <button class="btn btn-ghost" onclick="previewBroadsheet()">👁️ Preview Broadsheet</button>
+    </div>
+    <div id="bs-preview" style="margin-top:1rem;display:none;"></div>
   </div>
 
   <div class="panel">
@@ -503,6 +535,22 @@ select option{background:var(--deep);}
       <button class="btn btn-ghost" onclick="saveDecisionsOnly()">💾 Save Decisions (shows on report card)</button>
       <button class="btn btn-danger" onclick="applyPromotionDecisions()">🎓 Apply &amp; Move Students Now</button>
     </div>
+  </div>
+
+  <!-- COMPILED PROMOTION LISTS -->
+  <div class="panel" id="promo-compiled-panel">
+    <div class="panel-title">📑 Compiled <span>Promotion Lists</span> — Per Department & Class</div>
+    <p class="text-muted mb1">After saving promotion decisions, generate clean, printable lists of <strong style="color:#4ade80">Promoted</strong>, <strong style="color:#facc15">Promoted on Trial</strong>, <strong style="color:#a78bfa">Resit (Repeat Examination)</strong>, and <strong style="color:#f87171">Repeating Class</strong> students for any department and class. You can download each list as a styled Excel sheet (.xlsx) and print directly.</p>
+    <div class="form-grid">
+      <div class="form-group"><label>Department</label><select id="pl-dept"><option value="">-- Select Department --</option></select></div>
+      <div class="form-group"><label>Class / Level</label><select id="pl-level"><option value="">-- Select Class --</option><option>NTC 1</option><option>NTC 2</option><option>NTC 3</option></select></div>
+      <div class="form-group"><label>Session</label><input type="text" id="pl-session" value="2024/2025"/></div>
+      <div class="form-group"><label>Term (for average)</label><select id="pl-term"><option>First Term</option><option>Second Term</option><option selected>Third Term</option></select></div>
+    </div>
+    <div class="flex-end" style="margin-bottom:1rem;">
+      <button class="btn btn-primary" onclick="generatePromotionLists()">📑 Generate Promotion Lists</button>
+    </div>
+    <div id="pl-output"></div>
   </div>
 
   <div class="panel">
@@ -831,8 +879,17 @@ function populateBsDeptFilter(){
   const sel=document.getElementById('bs-dept-filter');
   if(!sel) return;
   sel.innerHTML='<option value="">All Departments</option>'+DEPARTMENTS.filter(d=>d.id!=='GED').map(d=>`<option value="${d.id}">${d.name}</option>`).join('');
+  // sync bs session/term from settings if available
+  try{
+    const s=getSettings();
+    const bsSess=document.getElementById('bs-session'); if(bsSess && s.session) bsSess.value=s.session;
+    const bsTerm=document.getElementById('bs-term-filter'); if(bsTerm && s.term) bsTerm.value=s.term;
+    const plSess=document.getElementById('pl-session'); if(plSess && s.session) plSess.value=s.session;
+    const plTerm=document.getElementById('pl-term'); if(plTerm && s.term) plTerm.value=s.term;
+  }catch(e){}
 }
 
+// --- Legacy CSV download kept for compatibility ---
 function downloadBroadsheet(){
   const deptF=document.getElementById('bs-dept-filter').value;
   const levelF=document.getElementById('bs-level-filter').value;
@@ -841,20 +898,13 @@ function downloadBroadsheet(){
   if(deptF) students=students.filter(s=>s.dept===deptF);
   if(levelF) students=students.filter(s=>s.level===levelF);
   if(!students.length){ toast('No students found for selected filter',false); return; }
-
   const allResults=getResults();
-  const allSubjects=getSubjects();
-
-  // Collect all unique subjects for columns
   const subjectCodes=[...new Set(allResults.filter(r=>{
     const st=students.find(s=>s.reg===r.studentReg);
     return !!st;
   }).map(r=>r.subjectCode))].sort();
-
-  // Build header row
   const headers=['REG. NO.','FULL NAME','DEPARTMENT','LEVEL','GENDER',...subjectCodes.flatMap(c=>[c+'-T1',c+'-T2',c+'-T3',c+'-CA',c+'-EXAM',c+'-TOTAL']),'AVERAGE','GPA','REMARK'];
   const rows=[headers];
-
   students.sort((a,b)=>a.name.localeCompare(b.name)).forEach(st=>{
     const stRecs=allResults.filter(r=>r.studentReg===st.reg);
     const scores=subjectCodes.flatMap(code=>{
@@ -869,22 +919,218 @@ function downloadBroadsheet(){
     const remark=parseFloat(gpa)>=3.5?'Distinction':parseFloat(gpa)>=2.5?'Merit':parseFloat(gpa)>=1.5?'Pass':'Fail';
     rows.push([st.reg,st.name,getDeptName(st.dept),st.level,st.gender,...scores,avg,gpa,remark]);
   });
-
-  // Convert to CSV
   const csv=rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
   const label=`${settings.name||'GTC Okitipupa'} - ${settings.session||'2024/2025'} ${settings.term||'First Term'}`;
-  const titleRow=`"${label}"`;
-  const finalCsv=titleRow+'\n\n'+csv;
-
+  const finalCsv=`"${label}"\n\n`+csv;
   const blob=new Blob([finalCsv],{type:'text/csv;charset=utf-8;'});
   const url=URL.createObjectURL(blob);
-  const a=document.createElement('a');
-  a.href=url;
+  const a=document.createElement('a'); a.href=url;
   const fname=`GTC_Broadsheet_${(deptF||'All').replace(/\s/g,'_')}_${(levelF||'All').replace(/\s/g,'_')}.csv`;
-  a.download=fname;
-  a.click();
-  URL.revokeObjectURL(url);
-  toast('Broadsheet downloaded! Open with Excel or Google Sheets ✅');
+  a.download=fname; a.click(); URL.revokeObjectURL(url);
+  toast('Broadsheet CSV downloaded ✅');
+}
+
+// --- NEW: Modern Excel Broadsheet with styling ---
+function getBroadsheetData(){
+  const deptF=document.getElementById('bs-dept-filter')?.value||'';
+  const levelF=document.getElementById('bs-level-filter')?.value||'';
+  const sessionF=document.getElementById('bs-session')?.value||'';
+  const termF=document.getElementById('bs-term-filter')?.value||'';
+  let students=getStudents().filter(s=>s.dept!=='GED');
+  if(deptF) students=students.filter(s=>s.dept===deptF);
+  if(levelF) students=students.filter(s=>s.level===levelF);
+  const allResults=getResults();
+  let filteredResults=allResults;
+  if(sessionF) filteredResults=filteredResults.filter(r=>!r.session || r.session===sessionF);
+  if(termF) filteredResults=filteredResults.filter(r=>!r.term || r.term===termF);
+  // subject list from filtered results that belong to selected students
+  const subjectCodes=[...new Set(filteredResults.filter(r=>{
+    const st=students.find(s=>s.reg===r.studentReg);
+    return !!st;
+  }).map(r=>r.subjectCode))].sort();
+  const studentData=students.sort((a,b)=>a.name.localeCompare(b.name)).map((st,idx)=>{
+    const stRecs=filteredResults.filter(r=>r.studentReg===st.reg);
+    const scores={};
+    subjectCodes.forEach(code=>{
+      const rec=stRecs.find(r=>r.subjectCode===code);
+      scores[code]=rec?rec.total:'';
+    });
+    const filled=stRecs.filter(r=>r.total!==undefined);
+    const avg=filled.length?Math.round(filled.reduce((s,r)=>s+r.total,0)/filled.length):'';
+    const totalUnits=filled.reduce((s,r)=>s+r.units,0);
+    const totalWGP=filled.reduce((s,r)=>s+(calcGP(r.grade)*r.units),0);
+    const gpa=totalUnits?(totalWGP/totalUnits).toFixed(2):'';
+    let remark='';
+    if(gpa!==''){
+      const gv=parseFloat(gpa);
+      remark=gv>=3.5?'Distinction':gv>=2.5?'Merit':gv>=1.5?'Pass':'Fail';
+    }
+    return {sn:idx+1, reg:st.reg, name:st.name, dept:getDeptName(st.dept), deptId:st.dept, level:st.level, gender:st.gender, scores, avg, gpa, remark, totalRecs:stRecs};
+  });
+  return {students:studentData, subjectCodes, deptF, levelF, sessionF, termF};
+}
+
+function previewBroadsheet(){
+  const {students, subjectCodes, deptF, levelF, sessionF, termF}=getBroadsheetData();
+  const box=document.getElementById('bs-preview');
+  if(!students.length){ box.style.display='block'; box.innerHTML='<div class="empty"><div class="ei">📭</div><p>No students found for selected filters.</p></div>'; return; }
+  const settings=getSettings();
+  const headerInfo=`${settings.name||'GTC Okitipupa'} — ${deptF?getDeptName(deptF):'All Departments'} — ${levelF||'All Levels'} — ${sessionF||settings.session||''} ${termF||settings.term||''}`;
+  let html=`<div class="pl-print-area" id="bs-preview-printable">
+    <div class="pl-print-header"><h2>${settings.name||'Government Technical College, Okitipupa'}</h2>
+    <p><strong>BROADSHEET</strong> — ${headerInfo}</p>
+    <p style="font-size:0.75rem;color:#777;">Generated: ${new Date().toLocaleString()} | Total: ${students.length} student(s) | Subjects: ${subjectCodes.length}</p>
+    </div>
+    <div class="wrap"><table class="pl-print-tbl"><thead><tr><th>S/N</th><th>REG NO</th><th>FULL NAME</th><th>DEPT</th><th>LEVEL</th><th>GENDER</th>`;
+  subjectCodes.forEach(c=>{ html+=`<th>${c}</th>`; });
+  html+=`<th>AVG</th><th>GPA</th><th>REMARK</th></tr></thead><tbody>`;
+  students.forEach(st=>{
+    html+=`<tr><td>${st.sn}</td><td style="font-family:monospace">${st.reg}</td><td>${st.name}</td><td style="font-size:0.8rem">${st.dept}</td><td>${st.level}</td><td>${st.gender}</td>`;
+    subjectCodes.forEach(code=>{ const v=st.scores[code]; html+=`<td>${v!==''?v:'-'}</td>`; });
+    html+=`<td><strong>${st.avg}</strong></td><td>${st.gpa}</td><td>${st.remark}</td></tr>`;
+  });
+  html+=`</tbody></table></div></div>
+  <div style="margin-top:0.8rem;display:flex;gap:0.6rem;flex-wrap:wrap;">
+    <button class="btn btn-primary btn-sm" onclick="downloadBroadsheetExcel()">📥 Download Excel</button>
+    <button class="btn btn-ghost btn-sm" onclick="printBroadsheetPreview()">🖨️ Print Preview</button>
+  </div>`;
+  box.innerHTML=html;
+  box.style.display='block';
+  box.scrollIntoView({behavior:'smooth'});
+}
+
+function printBroadsheetPreview(){
+  const el=document.getElementById('bs-preview-printable');
+  if(!el){ toast('No preview to print',false); return; }
+  const win=window.open('','_blank');
+  win.document.write(`<html><head><title>Broadsheet Print</title>
+    <style>
+      body{font-family:Arial,sans-serif;padding:20px;color:#111;background:#fff;}
+      .pl-print-header{text-align:center;border-bottom:3px double #0a0f2c;padding-bottom:0.8rem;margin-bottom:1rem;}
+      .pl-print-header h2{font-size:1.3rem;color:#0a0f2c;margin:0;}
+      .pl-print-header p{font-size:0.82rem;color:#555;margin:0.2rem 0;}
+      table{width:100%;border-collapse:collapse;font-size:0.8rem;margin-top:0.6rem;}
+      th{background:#0a0f2c;color:#fff;padding:0.5rem 0.6rem;text-align:left;}
+      td{padding:0.45rem 0.6rem;border-bottom:1px solid #e5e7eb;}
+      tr:nth-child(even) td{background:#f9fafb;}
+      @media print{ th{background:#0a0f2c!important;color:#fff!important;-webkit-print-color-adjust:exact;print-color-adjust:exact;} }
+    </style></head><body>${el.innerHTML}</body></html>`);
+  win.document.close();
+  setTimeout(()=>{ win.print(); win.close(); }, 500);
+}
+
+function downloadBroadsheetExcel(){
+  const {students, subjectCodes, deptF, levelF, sessionF, termF}=getBroadsheetData();
+  if(!students.length){ toast('No students found for selected filters',false); return; }
+  const settings=getSettings();
+  const schoolName=settings.name||'Government Technical College, Okitipupa';
+  const title=`BROADSHEET - ${deptF?getDeptName(deptF):'All Departments'} - ${levelF||'All Levels'}`;
+  const subtitle=`${sessionF||settings.session||'2024/2025'} - ${termF||settings.term||'Third Term'} | Generated: ${new Date().toLocaleDateString()}`;
+
+  // Build worksheet data
+  const headers=['S/N','REG NO','FULL NAME','DEPARTMENT','LEVEL','GENDER',...subjectCodes,'AVERAGE','GPA','REMARK'];
+  const rows=[];
+  // Title rows
+  rows.push([schoolName]);
+  rows.push([title]);
+  rows.push([subtitle]);
+  rows.push([]); // empty
+  rows.push(headers);
+  students.forEach(st=>{
+    const row=[st.sn, st.reg, st.name, st.dept, st.level, st.gender];
+    subjectCodes.forEach(code=>{ row.push(st.scores[code]!==''?st.scores[code]:''); });
+    row.push(st.avg, st.gpa, st.remark);
+    rows.push(row);
+  });
+  // Footer summary
+  rows.push([]);
+  rows.push([`Total Students: ${students.length}`, `Total Subjects: ${subjectCodes.length}`, `Average Class Score: ${students.filter(s=>s.avg!=='').length?Math.round(students.filter(s=>s.avg!=='').reduce((a,b)=>a+(b.avg||0),0)/students.filter(s=>s.avg!=='').length):''}%`]);
+
+  const wb=XLSX.utils.book_new();
+  const ws=XLSX.utils.aoa_to_sheet(rows);
+
+  // Merges for title rows
+  const totalCols=headers.length;
+  ws['!merges']=[
+    {s:{r:0,c:0}, e:{r:0,c:totalCols-1}},
+    {s:{r:1,c:0}, e:{r:1,c:totalCols-1}},
+    {s:{r:2,c:0}, e:{r:2,c:totalCols-1}}
+  ];
+
+  // Column widths
+  ws['!cols']=[
+    {wch:5},{wch:15},{wch:25},{wch:30},{wch:10},{wch:10},
+    ...subjectCodes.map(()=>({wch:10})),
+    {wch:10},{wch:8},{wch:14}
+  ];
+
+  // Styles (xlsx-js-style)
+  const headerFill={fgColor:{rgb:"FF0A0F2C"}};
+  const headerFont={color:{rgb:"FFFFFFFF"}, bold:true, sz:11};
+  const titleFont={bold:true, sz:14, color:{rgb:"FF0A0F2C"}};
+  const subTitleFont={sz:11, color:{rgb:"FF555555"}, italic:true};
+  try{
+    // Style title rows
+    if(ws['A1']) ws['A1'].s={font:titleFont, alignment:{horizontal:'center', vertical:'center'}};
+    if(ws['A2']) ws['A2'].s={font:{bold:true, sz:12, color:{rgb:"FFC9A84C"}}, alignment:{horizontal:'center'}};
+    if(ws['A3']) ws['A3'].s={font:subTitleFont, alignment:{horizontal:'center'}};
+    // Style header row (row 5, index 4)
+    const headerRowIdx=4;
+    for(let c=0;c<totalCols;c++){
+      const cellRef=XLSX.utils.encode_cell({r:headerRowIdx,c});
+      if(ws[cellRef]){
+        ws[cellRef].s={
+          fill:headerFill,
+          font:headerFont,
+          alignment:{horizontal:'center', vertical:'center', wrapText:true},
+          border:{top:{style:'thin',color:{rgb:"FF000000"}}, bottom:{style:'thin',color:{rgb:"FF000000"}}, left:{style:'thin',color:{rgb:"FF000000"}}, right:{style:'thin',color:{rgb:"FF000000"}}}
+        };
+      }
+    }
+    // Style data rows with alternating colors and borders
+    for(let r=5;r<5+students.length;r++){
+      for(let c=0;c<totalCols;c++){
+        const cellRef=XLSX.utils.encode_cell({r,c});
+        if(!ws[cellRef]) continue;
+        const isEven=(r-5)%2===1;
+        ws[cellRef].s={
+          fill: isEven?{fgColor:{rgb:"FFF9FAFB"}}:{},
+          font:{sz:10},
+          alignment:{horizontal: c>=6?'center':'left', vertical:'center'},
+          border:{top:{style:'thin',color:{rgb:"FFE5E7EB"}}, bottom:{style:'thin',color:{rgb:"FFE5E7EB"}}, left:{style:'thin',color:{rgb:"FFE5E7EB"}}, right:{style:'thin',color:{rgb:"FFE5E7EB"}}}
+        };
+      }
+    }
+  }catch(e){ console.log('Styling not fully supported', e); }
+
+  XLSX.utils.book_append_sheet(wb, ws, "Broadsheet");
+
+  // Also add detailed sheet per department if filtered? Add summary sheet
+  const summaryData=[
+    ["GTC OKITIPUPA - BROADSHEET SUMMARY"],
+    ["Department", deptF?getDeptName(deptF):'All Departments'],
+    ["Class", levelF||'All Levels'],
+    ["Session", sessionF||settings.session||''],
+    ["Term", termF||settings.term||''],
+    ["Generated", new Date().toLocaleString()],
+    [],
+    ["Total Students", students.length],
+    ["Total Subjects", subjectCodes.length],
+    ["Subjects List", subjectCodes.join(', ')],
+    [],
+    ["Performance Breakdown"],
+    ["Distinction (GPA >=3.5)", students.filter(s=>parseFloat(s.gpa)>=3.5).length],
+    ["Merit (GPA >=2.5)", students.filter(s=>{const g=parseFloat(s.gpa); return g>=2.5 && g<3.5;}).length],
+    ["Pass (GPA >=1.5)", students.filter(s=>{const g=parseFloat(s.gpa); return g>=1.5 && g<2.5;}).length],
+    ["Fail (GPA <1.5)", students.filter(s=>{const g=parseFloat(s.gpa); return g!=='' && g<1.5;}).length]
+  ];
+  const ws2=XLSX.utils.aoa_to_sheet(summaryData);
+  ws2['!cols']=[{wch:30},{wch:50}];
+  XLSX.utils.book_append_sheet(wb, ws2, "Summary");
+
+  const fname=`GTC_Broadsheet_${(deptF||'All')}_${(levelF||'All')}_${(sessionF||'2024-2025').replace(/[^a-zA-Z0-9]/g,'-')}_${(termF||'All').replace(/\s/g,'_')}.xlsx`;
+  XLSX.writeFile(wb, fname);
+  toast('Broadsheet Excel downloaded — modern styled .xlsx ✅');
 }
 
 function toast(msg,ok=true){
@@ -1476,15 +1722,20 @@ function syncSettingsToFilters(){
   const ts=document.getElementById('t-session'); if(ts) ts.value=s.session||'2024/2025';
   const tt=document.getElementById('t-term'); if(tt) tt.value=s.term||'First Term';
   const rs=document.getElementById('r-session'); if(rs) rs.value=s.session||'2024/2025';
-  // Don't auto-set r-term — leave empty to show all terms
   const ls=document.getElementById('lg-session'); if(ls) ls.value=s.session||'2024/2025';
   const lt=document.getElementById('lg-term'); if(lt) lt.value=s.term||'First Term';
-  // also sync admin settings fields
   const as=document.getElementById('a-session'); if(as&&s.session) as.value=s.session;
   const at=document.getElementById('a-term'); if(at&&s.term) at.value=s.term;
   const atf=document.getElementById('a-term-filter'); if(atf&&s.term) atf.value=s.term;
   const an=document.getElementById('a-name'); if(an&&s.name) an.value=s.name;
   const ap=document.getElementById('a-principal'); if(ap&&s.principal) ap.value=s.principal;
+  // Broadsheet & Promotion Lists sync
+  const bsS=document.getElementById('bs-session'); if(bsS&&s.session) bsS.value=s.session;
+  const bsT=document.getElementById('bs-term-filter'); if(bsT&&s.term) bsT.value=s.term;
+  const ps=document.getElementById('promo-session'); if(ps&&s.session) ps.value=s.session;
+  const pt=document.getElementById('promo-term'); if(pt&&s.term) pt.value=s.term;
+  const pls=document.getElementById('pl-session'); if(pls&&s.session) pls.value=s.session;
+  const plt=document.getElementById('pl-term'); if(plt&&s.term) plt.value=s.term;
 }
 
 // ================================================================
@@ -1646,14 +1897,18 @@ function confirmPromotion(){
 // PROMOTION & PERFORMANCE MANAGER (per department / per class)
 // ================================================================
 function populatePromoFilters(){
-  const sel=document.getElementById('promo-dept'); if(!sel) return;
-  sel.innerHTML='<option value="">-- Select Department --</option>'+
-    DEPARTMENTS.map(d=>`<option value="${d.id}">${d.icon} ${d.name}</option>`).join('');
   const settings=getSettings();
+  const deptOptions='<option value="">-- Select Department --</option>'+DEPARTMENTS.map(d=>`<option value="${d.id}">${d.icon} ${d.name}</option>`).join('');
+  const sel=document.getElementById('promo-dept'); if(sel) sel.innerHTML=deptOptions;
+  const plDept=document.getElementById('pl-dept'); if(plDept) plDept.innerHTML=deptOptions;
   const termSel=document.getElementById('promo-term');
   const sessInput=document.getElementById('promo-session');
   if(termSel && settings.term){ termSel.value=settings.term; }
   if(sessInput && settings.session){ sessInput.value=settings.session; }
+  const plSess=document.getElementById('pl-session'); if(plSess && settings.session) plSess.value=settings.session;
+  const plTerm=document.getElementById('pl-term'); if(plTerm && settings.term) plTerm.value=settings.term;
+  const bsSess=document.getElementById('bs-session'); if(bsSess && settings.session) bsSess.value=settings.session;
+  const bsTerm=document.getElementById('bs-term-filter'); if(bsTerm && settings.term) bsTerm.value=settings.term;
 }
 
 function loadPromotionGroup(){
@@ -1734,7 +1989,7 @@ function saveDecisionsOnly(){
     const reg=sel.dataset.reg; const status=sel.value;
     if(!status) return;
     const st=students.find(s=>s.reg===reg); if(!st) return;
-    const history={...(st.promotionHistory||{}), [fbKey(session)]:{status, toLevel: (status==='repeat'||status==='repeat_exam')?level:nextLevel, decidedAt:new Date().toISOString(), term, session}};
+    const history={...(st.promotionHistory||{}), [fbKey(session)]:{status, fromLevel: level, toLevel: (status==='repeat'||status==='repeat_exam')?level:nextLevel, decidedAt:new Date().toISOString(), term, session, dept}};
     if(DB_REF){ batch['students/'+st.id+'/promotionHistory']=history; }
     else { st.promotionHistory=history; }
     savedNames.push(st.name);
@@ -1744,7 +1999,7 @@ function saveDecisionsOnly(){
   const finish=()=>{
     if(banner) banner.innerHTML=`<div style="background:rgba(22,163,74,0.12);border:1px solid #16a34a;border-radius:8px;padding:0.7rem 1rem;margin:0.8rem 0;font-size:0.82rem;">
       ✅ <strong>Saved at ${new Date().toLocaleTimeString()}</strong> for ${savedNames.length} student(s) under session "${session}": ${savedNames.join(', ')}.<br/>
-      <span style="color:#aaa;">Open any of these students' report cards now to confirm the promotion note appears.</span>
+      <span style="color:#aaa;">Open any of these students' report cards now to confirm the promotion note appears. Then use "Compiled Promotion Lists" below to download printable lists.</span>
     </div>`;
     toast(savedNames.length+' decision(s) saved — they now show on report cards ✅');
   };
@@ -1774,7 +2029,7 @@ function applyPromotionDecisions(){
   const actionLog=[];
   decisions.forEach(d=>{
     const st=students.find(s=>s.reg===d.reg); if(!st) return;
-    const history={...(st.promotionHistory||{}), [fbKey(session)]:{status:d.status, toLevel: (d.status==='repeat'||d.status==='repeat_exam')?level:(nextLevel||'Graduated'), decidedAt:new Date().toISOString(), session}};
+    const history={...(st.promotionHistory||{}), [fbKey(session)]:{status:d.status, fromLevel: level, toLevel: (d.status==='repeat'||d.status==='repeat_exam')?level:(nextLevel||'Graduated'), decidedAt:new Date().toISOString(), session, dept, term: document.getElementById('promo-term').value}};
     if(d.status==='repeat'||d.status==='repeat_exam'){
       batch['students/'+st.id+'/promotionHistory']=history;
       if(d.status==='repeat'){ repeatC++; actionLog.push(st.name+' → repeats '+level); }
@@ -1784,7 +2039,6 @@ function applyPromotionDecisions(){
       if(d.status==='trial'){ trialC++; actionLog.push(st.name+' → '+nextLevel+' (on trial)'); }
       else { promotedC++; actionLog.push(st.name+' → '+nextLevel); }
     } else {
-      // NTC 3 promoted or promoted-on-trial => graduate & archive
       const studentResults=results.filter(r=>r.studentReg===st.reg);
       batch['archived/'+gradYear+'/'+st.id]={student:{...st, promotionHistory:history}, results:studentResults, graduationYear:gradYear, archivedAt:new Date().toISOString(), session:sess};
       batch['students/'+st.id]=null;
@@ -1802,9 +2056,348 @@ function applyPromotionDecisions(){
     if(banner) banner.innerHTML=`<div style="background:rgba(22,163,74,0.12);border:1px solid #16a34a;border-radius:8px;padding:0.7rem 1rem;margin:0.8rem 0;font-size:0.82rem;">
       ✅ <strong>Applied at ${new Date().toLocaleTimeString()}:</strong> ${promotedC} promoted, ${trialC} on trial, ${repeatExamC} to resit exam, ${repeatC} repeating class, ${archivedC} archived.
       <div style="margin-top:0.4rem;color:#aaa;max-height:120px;overflow-y:auto;">${actionLog.join('<br/>')}</div>
-      <div style="margin-top:0.4rem;color:#facc15;">Note: promoted/trial/graduated students will disappear from the list below since they've moved out of ${level} — that confirms it worked. Check ${nextLevel||'Archived Graduates'} to see them there.</div>
+      <div style="margin-top:0.4rem;color:#facc15;">Note: promoted/trial/graduated students will disappear from the list below since they've moved out of ${level} — that confirms it worked. Check ${nextLevel||'Archived Graduates'} to see them there. Also use "Compiled Promotion Lists" below to generate final printable lists for this department/class.</div>
     </div>`;
   }).catch(e=>toast('Error applying decisions: '+e.message,false));
+}
+
+// ================================================================
+// COMPILED PROMOTION LISTS - NEW FEATURE
+// ================================================================
+let _LAST_PROMO_LISTS = null;
+
+function getStudentAvgForSession(studentReg, term, session){
+  const all=getResults().filter(r=>r.studentReg===studentReg);
+  let recs=all.filter(r=>(r.term===term||!r.term) && (r.session===session||!r.session));
+  if(!recs.length) recs=all.filter(r=>r.term===term||!r.term);
+  if(!recs.length) recs=all;
+  if(!recs.length) return null;
+  return Math.round(recs.reduce((s,r)=>s+r.total,0)/recs.length);
+}
+
+function generatePromotionLists(){
+  const dept=document.getElementById('pl-dept').value;
+  const level=document.getElementById('pl-level').value;
+  const session=document.getElementById('pl-session').value;
+  const term=document.getElementById('pl-term').value;
+  if(!dept||!level){ toast('Select department and class first',false); return; }
+  if(!session){ toast('Enter session (e.g. 2024/2025)',false); return; }
+  const sKey=fbKey(session);
+  const students=getStudents();
+  const allResults=getResults();
+
+  // We need to consider:
+  // 1) Students currently in this dept & level who have decision for this session
+  // 2) Students who were promoted FROM this level in this session (now in next level or archived)
+  // 3) Archived graduates if level == NTC 3
+
+  const promoted=[], trial=[], resit=[], repeating=[], undecided=[];
+  const seenRegs=new Set();
+
+  // Helper to classify
+  function classifyStudent(st, histEntry){
+    if(!histEntry||!histEntry.status) return 'undecided';
+    return histEntry.status;
+  }
+
+  // Current students in this exact dept & level
+  const currentInLevel=students.filter(s=>s.dept===dept && s.level===level);
+  currentInLevel.forEach(st=>{
+    seenRegs.add(st.reg);
+    const hist=(st.promotionHistory||{})[sKey];
+    // If fromLevel is present, ensure it matches selected level; if not, allow
+    if(hist && hist.fromLevel && hist.fromLevel!==level){
+      // decision was for different origin class, skip
+      return;
+    }
+    const status=classifyStudent(st, hist);
+    const avg=getStudentAvgForSession(st.reg, term, session);
+    const entry={reg:st.reg, name:st.name, gender:st.gender, dept:st.dept, level:st.level, avg, status, hist, currentLevel:st.level};
+    if(status==='promoted') promoted.push(entry);
+    else if(status==='trial') trial.push(entry);
+    else if(status==='repeat_exam') resit.push(entry);
+    else if(status==='repeat') repeating.push(entry);
+    else undecided.push(entry);
+  });
+
+  // Students now in NEXT level whose history says they came FROM this level in this session
+  const nextLevel=level==='NTC 1'?'NTC 2':(level==='NTC 2'?'NTC 3':null);
+  if(nextLevel){
+    const nowInNext=students.filter(s=>s.dept===dept && s.level===nextLevel);
+    nowInNext.forEach(st=>{
+      if(seenRegs.has(st.reg)) return;
+      const hist=(st.promotionHistory||{})[sKey];
+      if(!hist) return;
+      const from=hist.fromLevel||level; // fallback
+      if(from!==level) return;
+      if(hist.dept && hist.dept!==dept) return;
+      if(!['promoted','trial'].includes(hist.status)) return;
+      seenRegs.add(st.reg);
+      const avg=getStudentAvgForSession(st.reg, term, session);
+      const entry={reg:st.reg, name:st.name, gender:st.gender, dept:st.dept, level:level, avg, status:hist.status, hist, currentLevel:st.level, movedTo:nextLevel};
+      if(hist.status==='promoted') promoted.push(entry);
+      else if(hist.status==='trial') trial.push(entry);
+    });
+  }
+
+  // For NTC 3, also check archived graduates for this dept & session
+  const fetchArchivedForPromo=()=>{
+    if(level!=='NTC 3' || !DB_REF) return Promise.resolve([]);
+    return DB_REF.child('archived').once('value').then(snap=>{
+      const archived=snap.val()||{};
+      const list=[];
+      Object.values(archived).forEach(yearEntries=>{
+        Object.values(yearEntries||{}).forEach(entry=>{
+          if(!entry||!entry.student) return;
+          const st=entry.student;
+          if(st.dept!==dept) return;
+          const hist=(st.promotionHistory||{})[sKey];
+          if(!hist) {
+            // also check if archived session matches selected session
+            if(entry.session && entry.session!==session) return;
+            // if no hist but archived, consider as promoted
+            const avg=getStudentAvgForSession(st.reg, term, session) || (entry.results?Math.round(entry.results.reduce((a,b)=>a+b.total,0)/entry.results.length):null);
+            list.push({reg:st.reg, name:st.name, gender:st.gender, dept:st.dept, level:level, avg, status:'promoted', hist:null, currentLevel:'Graduated', gradYear:entry.graduationYear||''});
+            return;
+          }
+          if((hist.fromLevel||level)!==level) return;
+          if(!['promoted','trial','graduated'].includes(hist.status)) return;
+          seenRegs.add(st.reg);
+          const avg=getStudentAvgForSession(st.reg, term, session) || (entry.results?Math.round(entry.results.reduce((a,b)=>a+b.total,0)/entry.results.length):null);
+          list.push({reg:st.reg, name:st.name, gender:st.gender, dept:st.dept, level:level, avg, status:hist.status==='graduated'?'promoted':hist.status, hist, currentLevel:'Graduated', gradYear:entry.graduationYear||''});
+        });
+      });
+      return list;
+    });
+  };
+
+  const renderLists=(archivedPromoted)=>{
+    archivedPromoted.forEach(e=>{ if(!seenRegs.has(e.reg)){ if(e.status==='trial') trial.push(e); else promoted.push(e); }});
+    const total=promoted.length+trial.length+resit.length+repeating.length+undecided.length;
+    _LAST_PROMO_LISTS={dept, level, session, term, promoted, trial, resit, repeating, undecided, total, nextLevel, deptName:getDeptName(dept)};
+    renderPromotionListsOutput();
+  };
+
+  if(level==='NTC 3' && DB_REF){
+    fetchArchivedForPromo().then(renderLists);
+  } else {
+    renderLists([]);
+  }
+}
+
+function renderPromotionListsOutput(){
+  const data=_LAST_PROMO_LISTS;
+  if(!data){ return; }
+  const {dept, level, session, term, promoted, trial, resit, repeating, undecided, deptName, nextLevel}=data;
+  const out=document.getElementById('pl-output');
+  if(!out) return;
+  const settings=getSettings();
+  const makeTable=(list, type)=>{
+    if(!list.length) return `<p class="text-muted" style="font-size:0.82rem;">No students in this category.</p>`;
+    const headerColor={promoted:'#16a34a', trial:'#ca8a04', resit:'#7c3aed', repeat:'#dc2626', undecided:'#6b7280'}[type]||'#0a0f2c';
+    let html=`<div class="wrap"><table class="pl-print-tbl"><thead><tr>
+      <th style="background:${headerColor};">S/N</th><th style="background:${headerColor};">REG NO</th><th style="background:${headerColor};">FULL NAME</th><th style="background:${headerColor};">GENDER</th><th style="background:${headerColor};">AVG</th><th style="background:${headerColor};">STATUS</th><th style="background:${headerColor};">CURRENT CLASS</th></tr></thead><tbody>`;
+    list.sort((a,b)=> (b.avg||0)-(a.avg||0) || a.name.localeCompare(b.name)).forEach((st,i)=>{
+      html+=`<tr><td>${i+1}</td><td style="font-family:monospace">${st.reg}</td><td>${st.name}</td><td>${st.gender}</td><td><strong>${st.avg!==null?st.avg+'%':'-'}</strong></td><td>${statusLabel(st.status, st)}</td><td>${st.currentLevel}${st.movedTo?' → '+st.movedTo:''}${st.gradYear?' ('+st.gradYear+')':''}</td></tr>`;
+    });
+    html+=`</tbody></table></div>`;
+    return html;
+  };
+
+  out.innerHTML=`
+    <div style="background:rgba(201,168,76,0.08);border:1px solid var(--border);border-radius:10px;padding:1rem;margin-bottom:1rem;">
+      <h4 style="color:var(--gold);margin:0 0 0.5rem;">📋 ${deptName} — ${level} — ${session} (${term})</h4>
+      <p style="font-size:0.82rem;color:#aaa;margin:0;">Total considered: ${data.total} | Promoted: ${promoted.length} | On Trial: ${trial.length} | Resit: ${resit.length} | Repeating: ${repeating.length} | Undecided: ${undecided.length}</p>
+    </div>
+
+    <div class="pl-card">
+      <div class="pl-card-header"><h3 style="font-size:0.95rem;"><span class="pl-badge pl-badge-promoted">✅ Promoted to ${nextLevel||'Graduated'}</span> — ${promoted.length} student(s)</h3>
+        <div style="display:flex;gap:0.4rem;flex-wrap:wrap;">
+          <button class="btn btn-success btn-sm" onclick="downloadPromotionExcel('promoted')">📥 Excel</button>
+          <button class="btn btn-ghost btn-sm" onclick="printPromotionList('promoted')">🖨️ Print</button>
+        </div>
+      </div>
+      <div id="pl-table-promoted">${makeTable(promoted,'promoted')}</div>
+    </div>
+
+    <div class="pl-card">
+      <div class="pl-card-header"><h3 style="font-size:0.95rem;"><span class="pl-badge pl-badge-trial">⚠️ Promoted on Trial to ${nextLevel||'Graduated'}</span> — ${trial.length} student(s)</h3>
+        <div style="display:flex;gap:0.4rem;flex-wrap:wrap;">
+          <button class="btn btn-success btn-sm" onclick="downloadPromotionExcel('trial')">📥 Excel</button>
+          <button class="btn btn-ghost btn-sm" onclick="printPromotionList('trial')">🖨️ Print</button>
+        </div>
+      </div>
+      <div id="pl-table-trial">${makeTable(trial,'trial')}</div>
+    </div>
+
+    <div class="pl-card">
+      <div class="pl-card-header"><h3 style="font-size:0.95rem;"><span class="pl-badge pl-badge-resit">📝 To Reseat / Repeat Examination — ${resit.length} student(s)</span></h3>
+        <div style="display:flex;gap:0.4rem;flex-wrap:wrap;">
+          <button class="btn btn-success btn-sm" onclick="downloadPromotionExcel('resit')">📥 Excel</button>
+          <button class="btn btn-ghost btn-sm" onclick="printPromotionList('resit')">🖨️ Print</button>
+        </div>
+      </div>
+      <div id="pl-table-resit">${makeTable(resit,'resit')}</div>
+    </div>
+
+    <div class="pl-card">
+      <div class="pl-card-header"><h3 style="font-size:0.95rem;"><span class="pl-badge pl-badge-repeat">🔁 To Repeat Class ${level} — ${repeating.length} student(s)</span></h3>
+        <div style="display:flex;gap:0.4rem;flex-wrap:wrap;">
+          <button class="btn btn-success btn-sm" onclick="downloadPromotionExcel('repeating')">📥 Excel</button>
+          <button class="btn btn-ghost btn-sm" onclick="printPromotionList('repeating')">🖨️ Print</button>
+        </div>
+      </div>
+      <div id="pl-table-repeating">${makeTable(repeating,'repeat')}</div>
+    </div>
+
+    ${undecided.length?`<div class="pl-card" style="border-style:dashed;">
+      <div class="pl-card-header"><h3 style="font-size:0.95rem;">❓ Undecided / No Decision — ${undecided.length} student(s)</h3></div>
+      <div id="pl-table-undecided">${makeTable(undecided,'undecided')}</div>
+    </div>`:''}
+
+    <div style="margin-top:1rem;display:flex;gap:0.6rem;flex-wrap:wrap;">
+      <button class="btn btn-primary" onclick="downloadPromotionExcel('all')">📥 Download ALL Lists (Excel Workbook)</button>
+      <button class="btn btn-ghost" onclick="printPromotionList('all')">🖨️ Print ALL Lists</button>
+    </div>
+  `;
+  out.scrollIntoView({behavior:'smooth'});
+}
+
+function statusLabel(status, st){
+  const map={
+    promoted:`<span class="pl-badge pl-badge-promoted">Promoted${st&&st.movedTo?' to '+st.movedTo:''}</span>`,
+    trial:`<span class="pl-badge pl-badge-trial">On Trial${st&&st.movedTo?' to '+st.movedTo:''}</span>`,
+    repeat_exam:`<span class="pl-badge pl-badge-resit">Resit / Repeat Exam</span>`,
+    repeat:`<span class="pl-badge pl-badge-repeat">Repeat Class</span>`
+  };
+  return map[status]||`<span class="pl-badge" style="background:#374151;color:#fff;">${status||'Undecided'}</span>`;
+}
+
+function downloadPromotionExcel(type){
+  const data=_LAST_PROMO_LISTS;
+  if(!data){ toast('Generate lists first',false); return; }
+  const {dept, level, session, term, deptName}=data;
+  const settings=getSettings();
+  const schoolName=settings.name||'Government Technical College, Okitipupa';
+  const wb=XLSX.utils.book_new();
+
+  function buildSheet(list, sheetTitle){
+    const rows=[];
+    rows.push([schoolName]);
+    rows.push([sheetTitle]);
+    rows.push([`Department: ${deptName} | Class: ${level} | Session: ${session} | Term: ${term} | Generated: ${new Date().toLocaleDateString()}`]);
+    rows.push([]);
+    rows.push(['S/N','REG NO','FULL NAME','GENDER','AVERAGE','STATUS','CURRENT CLASS','REMARK']);
+    list.sort((a,b)=> (b.avg||0)-(a.avg||0) || a.name.localeCompare(b.name)).forEach((st,i)=>{
+      rows.push([i+1, st.reg, st.name, st.gender, st.avg!==null?st.avg+'%':'', st.status.toUpperCase(), st.currentLevel+(st.movedTo?' -> '+st.movedTo:''), '']);
+    });
+    rows.push([]);
+    rows.push([`Total: ${list.length} student(s)`]);
+    const ws=XLSX.utils.aoa_to_sheet(rows);
+    const totalCols=8;
+    ws['!merges']=[
+      {s:{r:0,c:0}, e:{r:0,c:totalCols-1}},
+      {s:{r:1,c:0}, e:{r:1,c:totalCols-1}},
+      {s:{r:2,c:0}, e:{r:2,c:totalCols-1}}
+    ];
+    ws['!cols']=[{wch:5},{wch:15},{wch:28},{wch:10},{wch:10},{wch:18},{wch:18},{wch:20}];
+    try{
+      const hdrIdx=4;
+      for(let c=0;c<totalCols;c++){
+        const ref=XLSX.utils.encode_cell({r:hdrIdx,c});
+        if(ws[ref]) ws[ref].s={fill:{fgColor:{rgb:"FF0A0F2C"}}, font:{color:{rgb:"FFFFFFFF"}, bold:true, sz:11}, alignment:{horizontal:'center', vertical:'center'}, border:{top:{style:'thin'},bottom:{style:'thin'},left:{style:'thin'},right:{style:'thin'}}};
+      }
+      if(ws['A1']) ws['A1'].s={font:{bold:true, sz:14, color:{rgb:"FF0A0F2C"}}, alignment:{horizontal:'center'}};
+      if(ws['A2']) ws['A2'].s={font:{bold:true, sz:12, color:{rgb:"FFC9A84C"}}, alignment:{horizontal:'center'}};
+      if(ws['A3']) ws['A3'].s={font:{sz:10, italic:true, color:{rgb:"FF666666"}}, alignment:{horizontal:'center'}};
+    }catch(e){}
+    return ws;
+  }
+
+  if(type==='all'){
+    const ws1=buildSheet(data.promoted, `PROMOTED LIST - ${deptName} - ${level} - ${session}`);
+    XLSX.utils.book_append_sheet(wb, ws1, "Promoted");
+    const ws2=buildSheet(data.trial, `PROMOTED ON TRIAL - ${deptName} - ${level} - ${session}`);
+    XLSX.utils.book_append_sheet(wb, ws2, "On Trial");
+    const ws3=buildSheet(data.resit, `REPEAT EXAMINATION (RESIT) - ${deptName} - ${level} - ${session}`);
+    XLSX.utils.book_append_sheet(wb, ws3, "Resit");
+    const ws4=buildSheet(data.repeating, `REPEATING CLASS - ${deptName} - ${level} - ${session}`);
+    XLSX.utils.book_append_sheet(wb, ws4, "Repeating");
+    if(data.undecided.length){
+      const ws5=buildSheet(data.undecided, `UNDECIDED - ${deptName} - ${level} - ${session}`);
+      XLSX.utils.book_append_sheet(wb, ws5, "Undecided");
+    }
+  } else {
+    let list=[], title='';
+    if(type==='promoted'){ list=data.promoted; title=`PROMOTED LIST - ${deptName} - ${level} - ${session}`; }
+    else if(type==='trial'){ list=data.trial; title=`PROMOTED ON TRIAL - ${deptName} - ${level} - ${session}`; }
+    else if(type==='resit'){ list=data.resit; title=`REPEAT EXAMINATION (RESIT) - ${deptName} - ${level} - ${session}`; }
+    else if(type==='repeating'){ list=data.repeating; title=`REPEATING CLASS - ${deptName} - ${level} - ${session}`; }
+    const ws=buildSheet(list, title);
+    XLSX.utils.book_append_sheet(wb, ws, title.substring(0,31));
+  }
+
+  const fname=`GTC_${type.toUpperCase()}_${dept}_${level}_${session.replace(/[^a-zA-Z0-9]/g,'-')}.xlsx`;
+  XLSX.writeFile(wb, fname);
+  toast(`${type.toUpperCase()} Excel downloaded ✅`);
+}
+
+function printPromotionList(type){
+  const data=_LAST_PROMO_LISTS;
+  if(!data){ toast('Generate lists first',false); return; }
+  const {deptName, level, session, term}=data;
+  const settings=getSettings();
+  const schoolName=settings.name||'Government Technical College, Okitipupa';
+  let lists=[];
+  if(type==='all'){
+    lists=[
+      {label:`✅ PROMOTED TO ${data.nextLevel||'GRADUATED'}`, list:data.promoted, color:'#16a34a'},
+      {label:`⚠️ PROMOTED ON TRIAL TO ${data.nextLevel||'GRADUATED'}`, list:data.trial, color:'#ca8a04'},
+      {label:`📝 TO REPEAT EXAMINATION (RESIT) - ${level}`, list:data.resit, color:'#7c3aed'},
+      {label:`🔁 TO REPEAT CLASS ${level}`, list:data.repeating, color:'#dc2626'}
+    ];
+  } else {
+    const map={
+      promoted:{label:`✅ PROMOTED TO ${data.nextLevel||'GRADUATED'}`, list:data.promoted, color:'#16a34a'},
+      trial:{label:`⚠️ PROMOTED ON TRIAL`, list:data.trial, color:'#ca8a04'},
+      resit:{label:`📝 TO REPEAT EXAMINATION (RESIT)`, list:data.resit, color:'#7c3aed'},
+      repeating:{label:`🔁 TO REPEAT CLASS ${level}`, list:data.repeating, color:'#dc2626'}
+    };
+    if(map[type]) lists=[map[type]];
+  }
+  let html=`<html><head><title>Promotion List Print</title><style>
+    body{font-family:Arial,sans-serif;padding:20px;color:#111;background:#fff;}
+    .hdr{text-align:center;border-bottom:3px double #0a0f2c;padding-bottom:0.8rem;margin-bottom:1rem;}
+    .hdr h2{font-size:1.3rem;color:#0a0f2c;margin:0;}
+    .hdr p{font-size:0.85rem;color:#555;margin:0.2rem 0;}
+    .section{margin-bottom:1.8rem;page-break-inside:avoid;}
+    .section h3{font-size:1rem;color:#0a0f2c;border-left:4px solid #c9a84c;padding-left:0.6rem;margin-bottom:0.6rem;}
+    table{width:100%;border-collapse:collapse;font-size:0.84rem;}
+    th{background:#0a0f2c;color:#fff;padding:0.5rem 0.6rem;text-align:left;}
+    td{padding:0.45rem 0.6rem;border-bottom:1px solid #e5e7eb;}
+    tr:nth-child(even) td{background:#f9fafb;}
+    .badge{display:inline-block;padding:0.15rem 0.5rem;border-radius:12px;font-size:0.7rem;font-weight:600;}
+    @media print{ th{background:#0a0f2c!important;color:#fff!important;-webkit-print-color-adjust:exact;print-color-adjust:exact;} }
+  </style></head><body>
+  <div class="hdr"><h2>${schoolName}</h2><p>Department of ${deptName}</p><p><strong>${type==='all'?'COMPILED PROMOTION LISTS':lists[0].label} — ${level} — ${session} — ${term}</strong></p><p style="font-size:0.75rem;color:#777;">Generated: ${new Date().toLocaleString()}</p></div>`;
+  lists.forEach(sec=>{
+    html+=`<div class="section"><h3 style="border-left-color:${sec.color};">${sec.label} — ${sec.list.length} student(s)</h3>`;
+    if(!sec.list.length){ html+=`<p style="color:#888;font-size:0.82rem;">No students in this category.</p>`; }
+    else {
+      html+=`<table><thead><tr><th>S/N</th><th>REG NO</th><th>FULL NAME</th><th>GENDER</th><th>AVG</th><th>CURRENT CLASS</th></tr></thead><tbody>`;
+      sec.list.sort((a,b)=> (b.avg||0)-(a.avg||0) || a.name.localeCompare(b.name)).forEach((st,i)=>{
+        html+=`<tr><td>${i+1}</td><td style="font-family:monospace">${st.reg}</td><td>${st.name}</td><td>${st.gender}</td><td><strong>${st.avg!==null?st.avg+'%':'-'}</strong></td><td>${st.currentLevel}${st.movedTo?' → '+st.movedTo:''}</td></tr>`;
+      });
+      html+=`</tbody></table>`;
+    }
+    html+=`</div>`;
+  });
+  html+=`<div style="margin-top:2rem;border-top:1px solid #ccc;padding-top:0.8rem;display:flex;justify-content:space-between;font-size:0.75rem;color:#777;"><span>Principal: ${settings.principal||''}</span><span>HOD: ___________________</span><span>Date: ${new Date().toLocaleDateString()}</span></div>`;
+  html+=`</body></html>`;
+  const win=window.open('','_blank');
+  win.document.write(html);
+  win.document.close();
+  setTimeout(()=>{ win.print(); win.close(); }, 600);
 }
 
 // ================================================================
