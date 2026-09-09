@@ -17,8 +17,21 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-<!-- Excel Export (styled) -->
-<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+<!-- Excel Export (styled) - multiple fallbacks -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js" onerror="this.onerror=null; var s=document.createElement('script'); s.src='https://unpkg.com/xlsx-js-style@1.2.0/dist/xlsx.bundle.js'; document.head.appendChild(s);"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
+<script>
+// Ensure XLSX is available - loader helper
+function ensureXLSX(cb){
+  if(typeof XLSX !== 'undefined'){ cb(); return; }
+  // Try loading fallback
+  var fallback = document.createElement('script');
+  fallback.src = 'https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js';
+  fallback.onload = function(){ if(typeof XLSX !== 'undefined') cb(); else { toast('Excel library failed to load. Check internet connection.', false); } };
+  fallback.onerror = function(){ toast('Excel library failed to load. Please check internet and try again.', false); };
+  document.head.appendChild(fallback);
+}
+</script>
 <style>
 :root{--navy:#0a0f2c;--deep:#111827;--gold:#c9a84c;--gold-light:#e8c97a;--white:#ffffff;--muted:#6b7280;--success:#16a34a;--danger:#dc2626;--border:rgba(201,168,76,0.2);}
 *{margin:0;padding:0;box-sizing:border-box;}
@@ -999,11 +1012,26 @@ function previewBroadsheet(){
   box.scrollIntoView({behavior:'smooth'});
 }
 
+function printViaIframe(html, title){
+  try{
+    const iframe=document.createElement('iframe');
+    iframe.style.position='fixed';
+    iframe.style.right='0'; iframe.style.bottom='0';
+    iframe.style.width='0'; iframe.style.height='0'; iframe.style.border='0';
+    document.body.appendChild(iframe);
+    const doc=iframe.contentDocument||iframe.contentWindow.document;
+    doc.open(); doc.write(html); doc.close();
+    setTimeout(()=>{
+      try{ iframe.contentWindow.focus(); iframe.contentWindow.print(); }catch(e){ console.log(e); }
+      setTimeout(()=>{ document.body.removeChild(iframe); }, 1000);
+    }, 600);
+    return true;
+  }catch(e){ console.error('iframe print failed', e); return false; }
+}
 function printBroadsheetPreview(){
   const el=document.getElementById('bs-preview-printable');
-  if(!el){ toast('No preview to print',false); return; }
-  const win=window.open('','_blank');
-  win.document.write(`<html><head><title>Broadsheet Print</title>
+  if(!el){ toast('No preview to print. Click Preview first.',false); return; }
+  const html=`<html><head><title>Broadsheet Print</title>
     <style>
       body{font-family:Arial,sans-serif;padding:20px;color:#111;background:#fff;}
       .pl-print-header{text-align:center;border-bottom:3px double #0a0f2c;padding-bottom:0.8rem;margin-bottom:1rem;}
@@ -1014,123 +1042,123 @@ function printBroadsheetPreview(){
       td{padding:0.45rem 0.6rem;border-bottom:1px solid #e5e7eb;}
       tr:nth-child(even) td{background:#f9fafb;}
       @media print{ th{background:#0a0f2c!important;color:#fff!important;-webkit-print-color-adjust:exact;print-color-adjust:exact;} }
-    </style></head><body>${el.innerHTML}</body></html>`);
-  win.document.close();
-  setTimeout(()=>{ win.print(); win.close(); }, 500);
+    </style></head><body>${el.innerHTML}</body></html>`;
+  if(!printViaIframe(html,'Broadsheet')){
+    const win=window.open('','_blank');
+    if(!win){ toast('Popup blocked. Please allow popups and try again.',false); return; }
+    win.document.write(html); win.document.close();
+    setTimeout(()=>{ win.print(); }, 500);
+  } else {
+    toast('Print dialog opened ✅');
+  }
 }
 
 function downloadBroadsheetExcel(){
-  const {students, subjectCodes, deptF, levelF, sessionF, termF}=getBroadsheetData();
-  if(!students.length){ toast('No students found for selected filters',false); return; }
-  const settings=getSettings();
-  const schoolName=settings.name||'Government Technical College, Okitipupa';
-  const title=`BROADSHEET - ${deptF?getDeptName(deptF):'All Departments'} - ${levelF||'All Levels'}`;
-  const subtitle=`${sessionF||settings.session||'2024/2025'} - ${termF||settings.term||'Third Term'} | Generated: ${new Date().toLocaleDateString()}`;
-
-  // Build worksheet data
-  const headers=['S/N','REG NO','FULL NAME','DEPARTMENT','LEVEL','GENDER',...subjectCodes,'AVERAGE','GPA','REMARK'];
-  const rows=[];
-  // Title rows
-  rows.push([schoolName]);
-  rows.push([title]);
-  rows.push([subtitle]);
-  rows.push([]); // empty
-  rows.push(headers);
-  students.forEach(st=>{
-    const row=[st.sn, st.reg, st.name, st.dept, st.level, st.gender];
-    subjectCodes.forEach(code=>{ row.push(st.scores[code]!==''?st.scores[code]:''); });
-    row.push(st.avg, st.gpa, st.remark);
-    rows.push(row);
-  });
-  // Footer summary
-  rows.push([]);
-  rows.push([`Total Students: ${students.length}`, `Total Subjects: ${subjectCodes.length}`, `Average Class Score: ${students.filter(s=>s.avg!=='').length?Math.round(students.filter(s=>s.avg!=='').reduce((a,b)=>a+(b.avg||0),0)/students.filter(s=>s.avg!=='').length):''}%`]);
-
-  const wb=XLSX.utils.book_new();
-  const ws=XLSX.utils.aoa_to_sheet(rows);
-
-  // Merges for title rows
-  const totalCols=headers.length;
-  ws['!merges']=[
-    {s:{r:0,c:0}, e:{r:0,c:totalCols-1}},
-    {s:{r:1,c:0}, e:{r:1,c:totalCols-1}},
-    {s:{r:2,c:0}, e:{r:2,c:totalCols-1}}
-  ];
-
-  // Column widths
-  ws['!cols']=[
-    {wch:5},{wch:15},{wch:25},{wch:30},{wch:10},{wch:10},
-    ...subjectCodes.map(()=>({wch:10})),
-    {wch:10},{wch:8},{wch:14}
-  ];
-
-  // Styles (xlsx-js-style)
-  const headerFill={fgColor:{rgb:"FF0A0F2C"}};
-  const headerFont={color:{rgb:"FFFFFFFF"}, bold:true, sz:11};
-  const titleFont={bold:true, sz:14, color:{rgb:"FF0A0F2C"}};
-  const subTitleFont={sz:11, color:{rgb:"FF555555"}, italic:true};
-  try{
-    // Style title rows
-    if(ws['A1']) ws['A1'].s={font:titleFont, alignment:{horizontal:'center', vertical:'center'}};
-    if(ws['A2']) ws['A2'].s={font:{bold:true, sz:12, color:{rgb:"FFC9A84C"}}, alignment:{horizontal:'center'}};
-    if(ws['A3']) ws['A3'].s={font:subTitleFont, alignment:{horizontal:'center'}};
-    // Style header row (row 5, index 4)
-    const headerRowIdx=4;
-    for(let c=0;c<totalCols;c++){
-      const cellRef=XLSX.utils.encode_cell({r:headerRowIdx,c});
-      if(ws[cellRef]){
-        ws[cellRef].s={
-          fill:headerFill,
-          font:headerFont,
-          alignment:{horizontal:'center', vertical:'center', wrapText:true},
-          border:{top:{style:'thin',color:{rgb:"FF000000"}}, bottom:{style:'thin',color:{rgb:"FF000000"}}, left:{style:'thin',color:{rgb:"FF000000"}}, right:{style:'thin',color:{rgb:"FF000000"}}}
-        };
-      }
+  const doExport = () => {
+    try{
+      const {students, subjectCodes, deptF, levelF, sessionF, termF}=getBroadsheetData();
+      if(!students.length){ toast('No students found for selected filters',false); return; }
+      const settings=getSettings();
+      const schoolName=settings.name||'Government Technical College, Okitipupa';
+      const title=`BROADSHEET - ${deptF?getDeptName(deptF):'All Departments'} - ${levelF||'All Levels'}`;
+      const subtitle=`${sessionF||settings.session||'2024/2025'} - ${termF||settings.term||'Third Term'} | Generated: ${new Date().toLocaleDateString()}`;
+      const headers=['S/N','REG NO','FULL NAME','DEPARTMENT','LEVEL','GENDER',...subjectCodes,'AVERAGE','GPA','REMARK'];
+      const rows=[];
+      rows.push([schoolName]);
+      rows.push([title]);
+      rows.push([subtitle]);
+      rows.push([]);
+      rows.push(headers);
+      students.forEach(st=>{
+        const row=[st.sn, st.reg, st.name, st.dept, st.level, st.gender];
+        subjectCodes.forEach(code=>{ row.push(st.scores[code]!==''?st.scores[code]:''); });
+        row.push(st.avg, st.gpa, st.remark);
+        rows.push(row);
+      });
+      rows.push([]);
+      rows.push([`Total Students: ${students.length}`, `Total Subjects: ${subjectCodes.length}`, `Average Class Score: ${students.filter(s=>s.avg!=='').length?Math.round(students.filter(s=>s.avg!=='').reduce((a,b)=>a+(b.avg||0),0)/students.filter(s=>s.avg!=='').length):''}%`]);
+      const wb=XLSX.utils.book_new();
+      const ws=XLSX.utils.aoa_to_sheet(rows);
+      const totalCols=headers.length;
+      ws['!merges']=[
+        {s:{r:0,c:0}, e:{r:0,c:totalCols-1}},
+        {s:{r:1,c:0}, e:{r:1,c:totalCols-1}},
+        {s:{r:2,c:0}, e:{r:2,c:totalCols-1}}
+      ];
+      ws['!cols']=[
+        {wch:5},{wch:15},{wch:25},{wch:30},{wch:10},{wch:10},
+        ...subjectCodes.map(()=>({wch:10})),
+        {wch:10},{wch:8},{wch:14}
+      ];
+      const headerFill={fgColor:{rgb:"FF0A0F2C"}};
+      const headerFont={color:{rgb:"FFFFFFFF"}, bold:true, sz:11};
+      const titleFont={bold:true, sz:14, color:{rgb:"FF0A0F2C"}};
+      const subTitleFont={sz:11, color:{rgb:"FF555555"}, italic:true};
+      try{
+        if(ws['A1']) ws['A1'].s={font:titleFont, alignment:{horizontal:'center', vertical:'center'}};
+        if(ws['A2']) ws['A2'].s={font:{bold:true, sz:12, color:{rgb:"FFC9A84C"}}, alignment:{horizontal:'center'}};
+        if(ws['A3']) ws['A3'].s={font:subTitleFont, alignment:{horizontal:'center'}};
+        const headerRowIdx=4;
+        for(let c=0;c<totalCols;c++){
+          const cellRef=XLSX.utils.encode_cell({r:headerRowIdx,c});
+          if(ws[cellRef]){
+            ws[cellRef].s={
+              fill:headerFill,
+              font:headerFont,
+              alignment:{horizontal:'center', vertical:'center', wrapText:true},
+              border:{top:{style:'thin',color:{rgb:"FF000000"}}, bottom:{style:'thin',color:{rgb:"FF000000"}}, left:{style:'thin',color:{rgb:"FF000000"}}, right:{style:'thin',color:{rgb:"FF000000"}}}
+            };
+          }
+        }
+        for(let r=5;r<5+students.length;r++){
+          for(let c=0;c<totalCols;c++){
+            const cellRef=XLSX.utils.encode_cell({r,c});
+            if(!ws[cellRef]) continue;
+            const isEven=(r-5)%2===1;
+            ws[cellRef].s={
+              fill: isEven?{fgColor:{rgb:"FFF9FAFB"}}:{},
+              font:{sz:10},
+              alignment:{horizontal: c>=6?'center':'left', vertical:'center'},
+              border:{top:{style:'thin',color:{rgb:"FFE5E7EB"}}, bottom:{style:'thin',color:{rgb:"FFE5E7EB"}}, left:{style:'thin',color:{rgb:"FFE5E7EB"}}, right:{style:'thin',color:{rgb:"FFE5E7EB"}}}
+            };
+          }
+        }
+      }catch(e){ console.log('Styling fallback', e); }
+      XLSX.utils.book_append_sheet(wb, ws, "Broadsheet");
+      const summaryData=[
+        ["GTC OKITIPUPA - BROADSHEET SUMMARY"],
+        ["Department", deptF?getDeptName(deptF):'All Departments'],
+        ["Class", levelF||'All Levels'],
+        ["Session", sessionF||settings.session||''],
+        ["Term", termF||settings.term||''],
+        ["Generated", new Date().toLocaleString()],
+        [],
+        ["Total Students", students.length],
+        ["Total Subjects", subjectCodes.length],
+        ["Subjects List", subjectCodes.join(', ')],
+        [],
+        ["Performance Breakdown"],
+        ["Distinction (GPA >=3.5)", students.filter(s=>parseFloat(s.gpa)>=3.5).length],
+        ["Merit (GPA >=2.5)", students.filter(s=>{const g=parseFloat(s.gpa); return g>=2.5 && g<3.5;}).length],
+        ["Pass (GPA >=1.5)", students.filter(s=>{const g=parseFloat(s.gpa); return g>=1.5 && g<2.5;}).length],
+        ["Fail (GPA <1.5)", students.filter(s=>{const g=parseFloat(s.gpa); return g!=='' && g<1.5;}).length]
+      ];
+      const ws2=XLSX.utils.aoa_to_sheet(summaryData);
+      ws2['!cols']=[{wch:30},{wch:50}];
+      XLSX.utils.book_append_sheet(wb, ws2, "Summary");
+      const fname=`GTC_Broadsheet_${(deptF||'All')}_${(levelF||'All')}_${(sessionF||'2024-2025').replace(/[^a-zA-Z0-9]/g,'-')}_${(termF||'All').replace(/\s/g,'_')}.xlsx`;
+      XLSX.writeFile(wb, fname);
+      toast('Broadsheet Excel downloaded — modern styled .xlsx ✅');
+    }catch(err){
+      console.error('Broadsheet export error', err);
+      toast('Excel export failed: '+(err.message||err)+'. Try CSV or check console.', false);
     }
-    // Style data rows with alternating colors and borders
-    for(let r=5;r<5+students.length;r++){
-      for(let c=0;c<totalCols;c++){
-        const cellRef=XLSX.utils.encode_cell({r,c});
-        if(!ws[cellRef]) continue;
-        const isEven=(r-5)%2===1;
-        ws[cellRef].s={
-          fill: isEven?{fgColor:{rgb:"FFF9FAFB"}}:{},
-          font:{sz:10},
-          alignment:{horizontal: c>=6?'center':'left', vertical:'center'},
-          border:{top:{style:'thin',color:{rgb:"FFE5E7EB"}}, bottom:{style:'thin',color:{rgb:"FFE5E7EB"}}, left:{style:'thin',color:{rgb:"FFE5E7EB"}}, right:{style:'thin',color:{rgb:"FFE5E7EB"}}}
-        };
-      }
-    }
-  }catch(e){ console.log('Styling not fully supported', e); }
-
-  XLSX.utils.book_append_sheet(wb, ws, "Broadsheet");
-
-  // Also add detailed sheet per department if filtered? Add summary sheet
-  const summaryData=[
-    ["GTC OKITIPUPA - BROADSHEET SUMMARY"],
-    ["Department", deptF?getDeptName(deptF):'All Departments'],
-    ["Class", levelF||'All Levels'],
-    ["Session", sessionF||settings.session||''],
-    ["Term", termF||settings.term||''],
-    ["Generated", new Date().toLocaleString()],
-    [],
-    ["Total Students", students.length],
-    ["Total Subjects", subjectCodes.length],
-    ["Subjects List", subjectCodes.join(', ')],
-    [],
-    ["Performance Breakdown"],
-    ["Distinction (GPA >=3.5)", students.filter(s=>parseFloat(s.gpa)>=3.5).length],
-    ["Merit (GPA >=2.5)", students.filter(s=>{const g=parseFloat(s.gpa); return g>=2.5 && g<3.5;}).length],
-    ["Pass (GPA >=1.5)", students.filter(s=>{const g=parseFloat(s.gpa); return g>=1.5 && g<2.5;}).length],
-    ["Fail (GPA <1.5)", students.filter(s=>{const g=parseFloat(s.gpa); return g!=='' && g<1.5;}).length]
-  ];
-  const ws2=XLSX.utils.aoa_to_sheet(summaryData);
-  ws2['!cols']=[{wch:30},{wch:50}];
-  XLSX.utils.book_append_sheet(wb, ws2, "Summary");
-
-  const fname=`GTC_Broadsheet_${(deptF||'All')}_${(levelF||'All')}_${(sessionF||'2024-2025').replace(/[^a-zA-Z0-9]/g,'-')}_${(termF||'All').replace(/\s/g,'_')}.xlsx`;
-  XLSX.writeFile(wb, fname);
-  toast('Broadsheet Excel downloaded — modern styled .xlsx ✅');
+  };
+  if(typeof XLSX === 'undefined'){
+    ensureXLSX(doExport);
+  } else {
+    doExport();
+  }
 }
 
 function toast(msg,ok=true){
@@ -2274,72 +2302,78 @@ function statusLabel(status, st){
 }
 
 function downloadPromotionExcel(type){
-  const data=_LAST_PROMO_LISTS;
-  if(!data){ toast('Generate lists first',false); return; }
-  const {dept, level, session, term, deptName}=data;
-  const settings=getSettings();
-  const schoolName=settings.name||'Government Technical College, Okitipupa';
-  const wb=XLSX.utils.book_new();
-
-  function buildSheet(list, sheetTitle){
-    const rows=[];
-    rows.push([schoolName]);
-    rows.push([sheetTitle]);
-    rows.push([`Department: ${deptName} | Class: ${level} | Session: ${session} | Term: ${term} | Generated: ${new Date().toLocaleDateString()}`]);
-    rows.push([]);
-    rows.push(['S/N','REG NO','FULL NAME','GENDER','AVERAGE','STATUS','CURRENT CLASS','REMARK']);
-    list.sort((a,b)=> (b.avg||0)-(a.avg||0) || a.name.localeCompare(b.name)).forEach((st,i)=>{
-      rows.push([i+1, st.reg, st.name, st.gender, st.avg!==null?st.avg+'%':'', st.status.toUpperCase(), st.currentLevel+(st.movedTo?' -> '+st.movedTo:''), '']);
-    });
-    rows.push([]);
-    rows.push([`Total: ${list.length} student(s)`]);
-    const ws=XLSX.utils.aoa_to_sheet(rows);
-    const totalCols=8;
-    ws['!merges']=[
-      {s:{r:0,c:0}, e:{r:0,c:totalCols-1}},
-      {s:{r:1,c:0}, e:{r:1,c:totalCols-1}},
-      {s:{r:2,c:0}, e:{r:2,c:totalCols-1}}
-    ];
-    ws['!cols']=[{wch:5},{wch:15},{wch:28},{wch:10},{wch:10},{wch:18},{wch:18},{wch:20}];
+  const doExport = () => {
     try{
-      const hdrIdx=4;
-      for(let c=0;c<totalCols;c++){
-        const ref=XLSX.utils.encode_cell({r:hdrIdx,c});
-        if(ws[ref]) ws[ref].s={fill:{fgColor:{rgb:"FF0A0F2C"}}, font:{color:{rgb:"FFFFFFFF"}, bold:true, sz:11}, alignment:{horizontal:'center', vertical:'center'}, border:{top:{style:'thin'},bottom:{style:'thin'},left:{style:'thin'},right:{style:'thin'}}};
+      const data=_LAST_PROMO_LISTS;
+      if(!data){ toast('Generate lists first',false); return; }
+      const {dept, level, session, term, deptName}=data;
+      const settings=getSettings();
+      const schoolName=settings.name||'Government Technical College, Okitipupa';
+      const wb=XLSX.utils.book_new();
+      function buildSheet(list, sheetTitle){
+        const rows=[];
+        rows.push([schoolName]);
+        rows.push([sheetTitle]);
+        rows.push([`Department: ${deptName} | Class: ${level} | Session: ${session} | Term: ${term} | Generated: ${new Date().toLocaleDateString()}`]);
+        rows.push([]);
+        rows.push(['S/N','REG NO','FULL NAME','GENDER','AVERAGE','STATUS','CURRENT CLASS','REMARK']);
+        list.sort((a,b)=> (b.avg||0)-(a.avg||0) || a.name.localeCompare(b.name)).forEach((st,i)=>{
+          rows.push([i+1, st.reg, st.name, st.gender, st.avg!==null?st.avg+'%':'', st.status.toUpperCase(), st.currentLevel+(st.movedTo?' -> '+st.movedTo:''), '']);
+        });
+        rows.push([]);
+        rows.push([`Total: ${list.length} student(s)`]);
+        const ws=XLSX.utils.aoa_to_sheet(rows);
+        const totalCols=8;
+        ws['!merges']=[
+          {s:{r:0,c:0}, e:{r:0,c:totalCols-1}},
+          {s:{r:1,c:0}, e:{r:1,c:totalCols-1}},
+          {s:{r:2,c:0}, e:{r:2,c:totalCols-1}}
+        ];
+        ws['!cols']=[{wch:5},{wch:15},{wch:28},{wch:10},{wch:10},{wch:18},{wch:18},{wch:20}];
+        try{
+          const hdrIdx=4;
+          for(let c=0;c<totalCols;c++){
+            const ref=XLSX.utils.encode_cell({r:hdrIdx,c});
+            if(ws[ref]) ws[ref].s={fill:{fgColor:{rgb:"FF0A0F2C"}}, font:{color:{rgb:"FFFFFFFF"}, bold:true, sz:11}, alignment:{horizontal:'center', vertical:'center'}, border:{top:{style:'thin'},bottom:{style:'thin'},left:{style:'thin'},right:{style:'thin'}}};
+          }
+          if(ws['A1']) ws['A1'].s={font:{bold:true, sz:14, color:{rgb:"FF0A0F2C"}}, alignment:{horizontal:'center'}};
+          if(ws['A2']) ws['A2'].s={font:{bold:true, sz:12, color:{rgb:"FFC9A84C"}}, alignment:{horizontal:'center'}};
+          if(ws['A3']) ws['A3'].s={font:{sz:10, italic:true, color:{rgb:"FF666666"}}, alignment:{horizontal:'center'}};
+        }catch(e){}
+        return ws;
       }
-      if(ws['A1']) ws['A1'].s={font:{bold:true, sz:14, color:{rgb:"FF0A0F2C"}}, alignment:{horizontal:'center'}};
-      if(ws['A2']) ws['A2'].s={font:{bold:true, sz:12, color:{rgb:"FFC9A84C"}}, alignment:{horizontal:'center'}};
-      if(ws['A3']) ws['A3'].s={font:{sz:10, italic:true, color:{rgb:"FF666666"}}, alignment:{horizontal:'center'}};
-    }catch(e){}
-    return ws;
-  }
-
-  if(type==='all'){
-    const ws1=buildSheet(data.promoted, `PROMOTED LIST - ${deptName} - ${level} - ${session}`);
-    XLSX.utils.book_append_sheet(wb, ws1, "Promoted");
-    const ws2=buildSheet(data.trial, `PROMOTED ON TRIAL - ${deptName} - ${level} - ${session}`);
-    XLSX.utils.book_append_sheet(wb, ws2, "On Trial");
-    const ws3=buildSheet(data.resit, `REPEAT EXAMINATION (RESIT) - ${deptName} - ${level} - ${session}`);
-    XLSX.utils.book_append_sheet(wb, ws3, "Resit");
-    const ws4=buildSheet(data.repeating, `REPEATING CLASS - ${deptName} - ${level} - ${session}`);
-    XLSX.utils.book_append_sheet(wb, ws4, "Repeating");
-    if(data.undecided.length){
-      const ws5=buildSheet(data.undecided, `UNDECIDED - ${deptName} - ${level} - ${session}`);
-      XLSX.utils.book_append_sheet(wb, ws5, "Undecided");
+      if(type==='all'){
+        const ws1=buildSheet(data.promoted, `PROMOTED LIST - ${deptName} - ${level} - ${session}`);
+        XLSX.utils.book_append_sheet(wb, ws1, "Promoted");
+        const ws2=buildSheet(data.trial, `PROMOTED ON TRIAL - ${deptName} - ${level} - ${session}`);
+        XLSX.utils.book_append_sheet(wb, ws2, "On Trial");
+        const ws3=buildSheet(data.resit, `REPEAT EXAMINATION (RESIT) - ${deptName} - ${level} - ${session}`);
+        XLSX.utils.book_append_sheet(wb, ws3, "Resit");
+        const ws4=buildSheet(data.repeating, `REPEATING CLASS - ${deptName} - ${level} - ${session}`);
+        XLSX.utils.book_append_sheet(wb, ws4, "Repeating");
+        if(data.undecided.length){
+          const ws5=buildSheet(data.undecided, `UNDECIDED - ${deptName} - ${level} - ${session}`);
+          XLSX.utils.book_append_sheet(wb, ws5, "Undecided");
+        }
+      } else {
+        let list=[], title='';
+        if(type==='promoted'){ list=data.promoted; title=`PROMOTED LIST - ${deptName} - ${level} - ${session}`; }
+        else if(type==='trial'){ list=data.trial; title=`PROMOTED ON TRIAL - ${deptName} - ${level} - ${session}`; }
+        else if(type==='resit'){ list=data.resit; title=`REPEAT EXAMINATION (RESIT) - ${deptName} - ${level} - ${session}`; }
+        else if(type==='repeating'){ list=data.repeating; title=`REPEATING CLASS - ${deptName} - ${level} - ${session}`; }
+        if(!list.length){ toast('No students in '+type+' list to export', false); return; }
+        const ws=buildSheet(list, title);
+        XLSX.utils.book_append_sheet(wb, ws, title.substring(0,31));
+      }
+      const fname=`GTC_${type.toUpperCase()}_${dept}_${level}_${session.replace(/[^a-zA-Z0-9]/g,'-')}.xlsx`;
+      XLSX.writeFile(wb, fname);
+      toast(`${type.toUpperCase()} Excel downloaded ✅`);
+    }catch(err){
+      console.error('Promotion Excel error', err);
+      toast('Excel export failed: '+(err.message||err), false);
     }
-  } else {
-    let list=[], title='';
-    if(type==='promoted'){ list=data.promoted; title=`PROMOTED LIST - ${deptName} - ${level} - ${session}`; }
-    else if(type==='trial'){ list=data.trial; title=`PROMOTED ON TRIAL - ${deptName} - ${level} - ${session}`; }
-    else if(type==='resit'){ list=data.resit; title=`REPEAT EXAMINATION (RESIT) - ${deptName} - ${level} - ${session}`; }
-    else if(type==='repeating'){ list=data.repeating; title=`REPEATING CLASS - ${deptName} - ${level} - ${session}`; }
-    const ws=buildSheet(list, title);
-    XLSX.utils.book_append_sheet(wb, ws, title.substring(0,31));
-  }
-
-  const fname=`GTC_${type.toUpperCase()}_${dept}_${level}_${session.replace(/[^a-zA-Z0-9]/g,'-')}.xlsx`;
-  XLSX.writeFile(wb, fname);
-  toast(`${type.toUpperCase()} Excel downloaded ✅`);
+  };
+  if(typeof XLSX==='undefined'){ ensureXLSX(doExport); } else { doExport(); }
 }
 
 function printPromotionList(type){
@@ -2394,10 +2428,15 @@ function printPromotionList(type){
   });
   html+=`<div style="margin-top:2rem;border-top:1px solid #ccc;padding-top:0.8rem;display:flex;justify-content:space-between;font-size:0.75rem;color:#777;"><span>Principal: ${settings.principal||''}</span><span>HOD: ___________________</span><span>Date: ${new Date().toLocaleDateString()}</span></div>`;
   html+=`</body></html>`;
-  const win=window.open('','_blank');
-  win.document.write(html);
-  win.document.close();
-  setTimeout(()=>{ win.print(); win.close(); }, 600);
+  if(!printViaIframe(html,'Promotion List')){
+    const win=window.open('','_blank');
+    if(!win){ toast('Popup blocked. Please allow popups and try again.',false); return; }
+    win.document.write(html);
+    win.document.close();
+    setTimeout(()=>{ try{ win.print(); }catch(e){} }, 600);
+  } else {
+    toast('Print dialog opened ✅');
+  }
 }
 
 // ================================================================
